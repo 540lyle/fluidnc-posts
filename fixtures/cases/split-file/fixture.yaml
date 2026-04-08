@@ -1,0 +1,55 @@
+id: split-file
+category: restart-and-packaging
+purpose: Protect split-file workflows where each output file must be safe to run independently.
+fusion_setup:
+  document_units: mm
+  stock:
+    requirement: Use one stock setup with at least three operations.
+  wcs:
+    requirement: Use a single documented WCS that is restated in every emitted sub-file.
+  operations:
+    - Include at least three operations.
+    - Use at least two tools so split-by-tool and split-by-toolpath differ materially.
+    - Set operation comments intentionally because they affect emitted file names and operator clarity.
+    - Include at least one restart-sensitive operation such as a pocket or bore.
+post_runs:
+  - id: split-by-tool
+    properties:
+      splitFile: tool
+      safeStartAllOperations: false
+      safePositionMethod: G53
+  - id: split-by-toolpath
+    properties:
+      splitFile: toolpath
+      safeStartAllOperations: false
+      safePositionMethod: G53
+  - id: split-by-tool-safe-start
+    properties:
+      splitFile: tool
+      safeStartAllOperations: true
+      safePositionMethod: G53
+artifacts:
+  must_capture:
+    - The placeholder master file if one is emitted.
+    - Every generated sub-file for every post run.
+    - A short note mapping sub-files back to operations and tools.
+manual_review:
+  must_contain:
+    - Each generated file restates enough modal state to run independently.
+    - File naming stays readable for an operator at the machine.
+    - Startup safety lines appear in each sub-file, not only in the master or first file.
+  must_not_contain:
+    - No sub-file should depend on prior files to establish unit mode, WCS, spindle state, or retract state.
+  checkpoints:
+    - Generated file names.
+    - Header and startup lines of each sub-file.
+    - Tool-change and WCS lines in each sub-file.
+    - Restart-sensitive operation entry line.
+failure_impact: Split files that are not self-sufficient create dangerous restart behavior and operator confusion.
+invariants:
+  - each emitted file establishes enough modal state for safe restart
+  - header and operator messaging remain clear when files are split by tool or toolpath
+  - split-file safety logic does not depend on unsupported optional block behavior
+notes:
+  - Capture both file trees and keep them under `fixtures/expected/fusion` with run identifiers.
+  - This fixture is the main guardrail against regressions in stitched jobs and resume workflows.

@@ -1,0 +1,4 @@
+invariants:
+  - tool changes retract safely before operator intervention
+  - optional pause behavior is explicit and documented
+  - spindle and coolant transitions around tool changes are predictable

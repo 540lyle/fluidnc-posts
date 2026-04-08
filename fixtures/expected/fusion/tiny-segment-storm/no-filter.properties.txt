@@ -1,0 +1,8 @@
+fixture: tiny-segment-storm
+run: no-filter
+document_units: mm
+minimumSegmentLength: 0
+fluidncArcTolerance: 0.002
+post: FluidNC.cps
+lineCount: 635
+status: posted

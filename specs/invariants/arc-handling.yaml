@@ -1,0 +1,4 @@
+invariants:
+  - post tolerance and controller arc tolerance stay aligned by default
+  - arc-heavy output must not regress into unnecessary linearization without cause
+  - segment filtering must flush pending endpoints before rapids, arcs, and section exits

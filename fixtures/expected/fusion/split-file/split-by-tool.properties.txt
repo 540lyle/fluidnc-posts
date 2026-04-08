@@ -1,0 +1,10 @@
+fixture: split-file
+run: split-by-tool
+document_units: mm
+splitFile: tool
+safeStartAllOperations: false
+safePositionMethod: G53
+post: FluidNC.cps
+generatedMasterFile: split-by-tool.nc
+generatedSubfiles: split-by-tool_1_T1.nc, split-by-tool_2_T2.nc, split-by-tool_3_T1.nc
+status: posted

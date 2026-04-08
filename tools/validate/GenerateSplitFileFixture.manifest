@@ -1,0 +1,13 @@
+{
+  "autodeskProduct": "Fusion360",
+  "type": "script",
+  "id": "f2df2359-138e-4503-8b9c-16095775645e",
+  "author": "Codex for 540ly",
+  "description": {
+    "": "Generates the FluidNC split-file fixture design and exports it as an .f3d archive."
+  },
+  "version": "0.1.0",
+  "runOnStartup": false,
+  "supportedOS": "windows|mac",
+  "editEnabled": true
+}

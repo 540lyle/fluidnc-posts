@@ -1,0 +1,11 @@
+fixture: inch-job
+run: safe-start-inch
+document_units: in
+splitFile: none
+safeStartAllOperations: true
+spindleWarmupDelay: 3
+safePositionMethod: G53
+coolant: off
+minimumSegmentLength: 0.01 mm
+post: FluidNC.cps
+status: posted

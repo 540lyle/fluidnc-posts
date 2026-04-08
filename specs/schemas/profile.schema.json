@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FluidNC machine profile",
+  "type": "object",
+  "required": ["id", "controller", "defaults"],
+  "properties": {
+    "id": { "type": "string" },
+    "controller": { "type": "string" },
+    "defaults": {
+      "type": "object",
+      "properties": {
+        "spindleWarmupDelaySec": { "type": "number", "minimum": 0 },
+        "arcToleranceMm": { "type": "number", "minimum": 0 },
+        "minimumSegmentLengthMm": { "type": "number", "minimum": 0 },
+        "safeRetractMethod": { "type": "string" },
+        "coolantMode": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

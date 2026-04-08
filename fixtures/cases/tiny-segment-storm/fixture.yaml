@@ -1,0 +1,51 @@
+id: tiny-segment-storm
+category: motion-filtering
+purpose: Protect planner-aware minimum segment filtering without losing effective path endpoints.
+fusion_setup:
+  document_units: mm
+  stock:
+    requirement: Use simple stock so the fixture isolates toolpath density rather than setup complexity.
+  geometry:
+    requirement: Use spline-heavy, tessellated, or very small-radius geometry that generates dense short linear segments.
+  operations:
+    - Include at least one dense linearized cut that produces many micro-segments.
+    - Include one transition from dense motion into a rapid.
+    - Include one transition from dense motion into an arc-capable move or a section exit.
+post_runs:
+  - id: no-filter
+    properties:
+      minimumSegmentLength: 0
+      fluidncArcTolerance: 0.002
+  - id: default-filter
+    properties:
+      minimumSegmentLength: 0.05
+      fluidncArcTolerance: 0.002
+  - id: aggressive-filter
+    properties:
+      minimumSegmentLength: 0.1
+      fluidncArcTolerance: 0.002
+artifacts:
+  must_capture:
+    - Emitted NC for all three post runs.
+    - A short note describing how the source geometry was created.
+    - A count or rough comparison of motion density between runs.
+manual_review:
+  must_contain:
+    - Pending filtered endpoints flush before rapids, arcs, and section exits.
+    - The final effective endpoint of the filtered region matches path intent.
+  must_not_contain:
+    - No stranded endpoint before a rapid, arc, or section boundary.
+    - No obvious path truncation caused by aggressive filtering.
+  checkpoints:
+    - Beginning of the dense region.
+    - First filtered-to-flushed transition.
+    - Transition into rapid.
+    - Transition into arc or section end.
+failure_impact: Segment filtering bugs can look fine in code review while causing path deviation, stalling, or planner starvation on the controller.
+invariants:
+  - micro-segments may be suppressed when below the configured threshold
+  - pending endpoints flush before rapids, arcs, and section exits
+  - filtering reduces planner load without altering the intended endpoint
+notes:
+  - The comparison between `minimumSegmentLength=0`, `0.05`, and `0.1` is part of the fixture.
+  - Review path fidelity first and line-count reduction second.

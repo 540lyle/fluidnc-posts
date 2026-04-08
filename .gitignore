@@ -1,0 +1,17 @@
+profiles/local/*.yaml
+profiles/local/*.yml
+profiles/local/*.json
+profiles/local/*.toml
+profiles/local/*.cps
+profiles/local/*.nc
+profiles/local/*.txt
+
+adapters/fusion/*.local.cps
+adapters/fusion/testdata/out/
+tools/_inspect/
+
+*.log
+*.tmp
+*.bak
+Thumbs.db
+.DS_Store

@@ -1,0 +1,12 @@
+controller: fluidnc
+capabilities:
+  milling: true
+  turning: false
+  tool_length_compensation: false
+  radius_compensation: false
+  coolant_mist: true
+  coolant_flood: machine_dependent
+  coolant_air: machine_dependent
+  feed_per_revolution: false
+  split_file_workflow: true
+  manual_tool_change: true

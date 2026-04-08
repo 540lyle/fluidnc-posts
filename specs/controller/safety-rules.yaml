@@ -1,0 +1,10 @@
+rules:
+  - id: unit-mode-must-be-explicit
+    severity: high
+    description: Safe-start or section-start code must not silently force the wrong unit system.
+  - id: restart-must-be-safe
+    severity: high
+    description: Restart-oriented output must re-establish enough modal state to cut safely.
+  - id: filtered-segments-must-reach-endpoint
+    severity: high
+    description: Segment filtering may suppress moves, but must not lose the effective toolpath endpoint.

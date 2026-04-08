@@ -1,0 +1,14 @@
+fixture: multi-tool
+run: manual-toolchange-no-optional-stop
+document_units: mm
+optionalStop: false
+useToolCall: true
+useM06: false
+useCoolant: true
+spindleWarmupDelay: 3
+post: FluidNC.cps
+minimumSegmentLength: 0.01 mm
+tool_1_coolant: air
+tool_2_coolant: off
+tool_3_coolant: air
+status: posted

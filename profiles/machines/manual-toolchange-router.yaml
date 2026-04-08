@@ -1,0 +1,11 @@
+id: manual-toolchange-router
+controller: fluidnc
+defaults:
+  spindleWarmupDelaySec: 3
+  arcToleranceMm: 0.002
+  minimumSegmentLengthMm: 0.05
+  safeRetractMethod: G53
+  coolantMode: mist_or_air
+  optionalStopOnToolChange: true
+notes:
+  - Intended for machines where the operator swaps tools manually between sections.

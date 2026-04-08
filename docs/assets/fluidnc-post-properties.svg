@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="320" viewBox="0 0 840 320" role="img" aria-labelledby="title desc">
+  <title id="title">FluidNC Fusion post properties</title>
+  <desc id="desc">Illustration of the FluidNC post property block in Fusion showing arc tolerance, junction deviation, minimum segment length, spindle warmup delay, and G53 safe retracts.</desc>
+  <rect width="840" height="320" fill="#2f3744"/>
+  <rect x="8" y="8" width="824" height="304" rx="10" fill="#3b4453" stroke="#5a6473"/>
+  <rect x="16" y="16" width="808" height="36" rx="6" fill="#4b5563"/>
+  <text x="30" y="39" font-family="Segoe UI, Arial, sans-serif" font-size="20" fill="#ffffff">Post properties</text>
+
+  <rect x="24" y="64" width="792" height="26" rx="4" fill="#566170"/>
+  <text x="38" y="82" font-family="Segoe UI, Arial, sans-serif" font-size="18" fill="#ffffff">fluidnc</text>
+
+  <text x="30" y="118" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#ffffff">FluidNC arc tolerance (mm)</text>
+  <rect x="272" y="98" width="510" height="30" rx="4" fill="#2a313d" stroke="#646f80"/>
+  <text x="288" y="119" font-family="Consolas, monospace" font-size="18" fill="#ffffff">0.002</text>
+
+  <text x="30" y="156" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#ffffff">FluidNC junction deviation (mm)</text>
+  <rect x="272" y="136" width="510" height="30" rx="4" fill="#2a313d" stroke="#646f80"/>
+  <text x="288" y="157" font-family="Consolas, monospace" font-size="18" fill="#ffffff">0.010</text>
+
+  <text x="30" y="194" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#ffffff">Min segment length (mm)</text>
+  <rect x="272" y="174" width="510" height="30" rx="4" fill="#2a313d" stroke="#646f80"/>
+  <text x="288" y="195" font-family="Consolas, monospace" font-size="18" fill="#ffffff">0.010</text>
+
+  <text x="30" y="232" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#ffffff">Spindle warmup delay (sec)</text>
+  <rect x="272" y="212" width="510" height="30" rx="4" fill="#2a313d" stroke="#646f80"/>
+  <text x="288" y="233" font-family="Consolas, monospace" font-size="18" fill="#ffffff">3.00</text>
+
+  <rect x="24" y="254" width="792" height="24" rx="4" fill="#566170"/>
+  <text x="38" y="271" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#ffffff">Safe retracts and home positioning</text>
+
+  <text x="30" y="301" font-family="Segoe UI, Arial, sans-serif" font-size="16" fill="#ffffff">Safe Retracts</text>
+  <rect x="272" y="282" width="180" height="24" rx="4" fill="#2a313d" stroke="#646f80"/>
+  <text x="288" y="299" font-family="Consolas, monospace" font-size="16" fill="#ffffff">G53</text>
+</svg>

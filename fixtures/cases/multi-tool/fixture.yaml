@@ -1,0 +1,54 @@
+id: multi-tool
+category: tool-change
+purpose: Protect manual tool-change and multi-tool sequencing behavior.
+fusion_setup:
+  document_units: mm
+  stock:
+    requirement: Use one setup that requires at least two physically different tools.
+  wcs:
+    requirement: Keep WCS fixed across tool changes so the fixture isolates tool-change behavior.
+  operations:
+    - Include at least two tools with different diameters and different cutting roles.
+    - Force at least one tool change between operations that also change spindle speed or coolant mode.
+    - Include one operation that reflects the real manual tool-change workflow used on the target machine.
+post_runs:
+  - id: manual-toolchange-default
+    properties:
+      optionalStop: true
+      useToolCall: true
+      useM06: false
+      useCoolant: true
+      spindleWarmupDelay: 3
+  - id: manual-toolchange-no-optional-stop
+    properties:
+      optionalStop: false
+      useToolCall: true
+      useM06: false
+      useCoolant: true
+      spindleWarmupDelay: 3
+artifacts:
+  must_capture:
+    - The emitted NC for both post runs.
+    - A tool table listing tool number, diameter, and intended use.
+    - Notes on the expected operator action at each tool change.
+manual_review:
+  must_contain:
+    - Safe retract before every tool change.
+    - Clear manual tool-change messaging.
+    - Explicit spindle restart after the change.
+  must_not_contain:
+    - No ambiguous coolant or spindle state carried across tool changes.
+  checkpoints:
+    - Pre-tool-change retract line.
+    - Optional stop line when enabled.
+    - Tool-call line or tool-change comment.
+    - Spindle warmup dwell after restart.
+    - Coolant off and coolant on transitions around the tool boundary.
+failure_impact: Tool-change bugs are operator-facing and can create immediate crashes, wrong-tool cuts, or unsafe manual intervention.
+invariants:
+  - tool changes retract safely before operator intervention
+  - optional stop behavior is explicit and predictable
+  - spindle and coolant transitions remain stable across tool boundaries
+notes:
+  - Prefer operations that make the posted tool boundary obvious during review.
+  - Save one emitted file with optional stop enabled and one with it disabled.

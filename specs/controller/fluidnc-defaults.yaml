@@ -1,0 +1,13 @@
+controller: fluidnc
+scope: milling
+defaults:
+  unit_mode: mm
+  plane: G17
+  feed_mode: G94
+  arc_tolerance_mm: 0.002
+  junction_deviation_mm: 0.01
+  spindle_warmup_delay_sec: 3
+  minimum_segment_length_mm: 0.05
+notes:
+  - Defaults are practical starting points, not authoritative machine truth.
+  - Machine or shop profiles may override these values.

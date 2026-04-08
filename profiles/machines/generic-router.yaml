@@ -1,0 +1,10 @@
+id: generic-router
+controller: fluidnc
+defaults:
+  spindleWarmupDelaySec: 3
+  arcToleranceMm: 0.002
+  minimumSegmentLengthMm: 0.05
+  safeRetractMethod: G53
+  coolantMode: none
+notes:
+  - Good starting point for machines with no flood coolant hardware.

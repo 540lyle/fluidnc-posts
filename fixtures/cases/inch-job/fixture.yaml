@@ -1,0 +1,52 @@
+id: inch-job
+category: unit-handling
+purpose: Protect imperial jobs from hidden metric-only startup or section-reset behavior.
+fusion_setup:
+  document_units: in
+  stock:
+    requirement: Use a simple rectangular stock large enough for two independent operations.
+  wcs:
+    requirement: Use one work offset with origin at stock top-front-left or another clearly documented corner.
+  operations:
+    - Include at least two operations that post as separate sections.
+    - Make one operation linear-dominant and one operation arc-capable.
+    - Include at least one retract and re-entry between operations.
+  tooling:
+    - Use at least one endmill sized in inch units.
+post_runs:
+  - id: base-inch
+    properties:
+      splitFile: none
+      safeStartAllOperations: false
+      spindleWarmupDelay: 3
+      safePositionMethod: G53
+  - id: safe-start-inch
+    properties:
+      splitFile: none
+      safeStartAllOperations: true
+      spindleWarmupDelay: 3
+      safePositionMethod: G53
+artifacts:
+  must_capture:
+    - Fusion setup file or a written reproduction note with geometry, operations, tools, and WCS.
+    - The emitted NC for each post run.
+    - The exact post property values used for each run.
+manual_review:
+  must_contain:
+    - Program startup emits G20 before cutting motion.
+    - Section-start safety output preserves inch mode.
+  must_not_contain:
+    - No section-reset block may silently force G21 in an inch job.
+  checkpoints:
+    - Program header and first startup block.
+    - First section-start safety block.
+    - Second section-start safety block.
+    - Any restart-sensitive line after retract and re-entry.
+failure_impact: An inch job that silently reverts to metric can crash the machine or scrap the part immediately.
+invariants:
+  - startup blocks honor inch mode when the job is posted in inches
+  - section transitions do not silently force G21 in an inch program
+  - feed and coordinate formatting remain consistent for inch output
+notes:
+  - This fixture exists because unit-mode bugs are catastrophic and easy to reintroduce during safe-start refactors.
+  - Save one emitted file with `safeStartAllOperations=false` and one with it enabled.

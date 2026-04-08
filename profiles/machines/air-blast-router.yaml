@@ -1,0 +1,10 @@
+id: air-blast-router
+controller: fluidnc
+defaults:
+  spindleWarmupDelaySec: 2
+  arcToleranceMm: 0.002
+  minimumSegmentLengthMm: 0.05
+  safeRetractMethod: G53
+  coolantMode: air
+notes:
+  - Example profile for routers wired with air blast on M8.

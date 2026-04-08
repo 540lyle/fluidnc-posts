@@ -1,0 +1,4 @@
+invariants:
+  - startup blocks establish absolute mode, feed mode, plane, and correct unit mode
+  - section transitions do not leave the controller in an ambiguous modal state
+  - split-file outputs remain self-sufficient enough for safe restart

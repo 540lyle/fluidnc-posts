@@ -1,0 +1,10 @@
+fixture: tiny-segment-storm
+run: aggressive-filter
+document_units: mm
+minimumSegmentLength: 0.1
+fluidncArcTolerance: 0.002
+post: FluidNC.cps
+lineCount: 493
+baselineComparison: -142 lines vs no-filter
+defaultFilterComparison: -102 lines vs default-filter
+status: posted

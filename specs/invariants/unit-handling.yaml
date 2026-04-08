@@ -1,0 +1,3 @@
+invariants:
+  - inch jobs never receive a metric-only safe-start sequence by mistake
+  - unit mode is explicit after any section or file boundary where modal state may be unknown

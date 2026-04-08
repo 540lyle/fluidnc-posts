@@ -1,0 +1,10 @@
+fixture: split-file
+run: split-by-toolpath
+document_units: mm
+splitFile: toolpath
+safeStartAllOperations: false
+safePositionMethod: G53
+post: FluidNC.cps
+generatedMasterFile: split-by-toolpath.nc
+generatedSubfiles: split-by-toolpath_1_01_rough_pocket_t1_T1.nc, split-by-toolpath_2_02_bore_12mm_t2_T2.nc, split-by-toolpath_3_03_outer_profile_t1_T1.nc
+status: posted

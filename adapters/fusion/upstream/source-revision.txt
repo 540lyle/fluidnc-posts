@@ -1,0 +1,8 @@
+adapter_file=FluidNC.cps
+imported_on=2026-04-07
+imported_from=C:\Users\540ly\AppData\Roaming\Autodesk\Fusion 360 CAM\Posts\FluidNC.cps
+baseline_file=grbl - ESP32.cps
+baseline_path=C:\Users\540ly\AppData\Roaming\Autodesk\Fusion 360 CAM\Posts\grbl - ESP32.cps
+autodesk_revision=44214 1f74fb3c348cc93e66ee15e354e2015b2aaf19e6
+autodesk_date=2026-02-17 04:16:48
+fork_id={154F7C00-6549-4c77-ADE0-79375FE5F2AA}

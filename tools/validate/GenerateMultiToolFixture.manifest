@@ -1,0 +1,13 @@
+{
+  "autodeskProduct": "Fusion360",
+  "type": "script",
+  "id": "7bf2d9af-1e61-4f0c-aa99-d221c9fcfadb",
+  "author": "Codex for 540ly",
+  "description": {
+    "": "Generates the FluidNC multi-tool fixture design and exports it as an .f3d archive."
+  },
+  "version": "0.1.0",
+  "runOnStartup": false,
+  "supportedOS": "windows|mac",
+  "editEnabled": true
+}

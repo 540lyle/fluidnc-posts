@@ -1,0 +1,13 @@
+{
+  "autodeskProduct": "Fusion360",
+  "type": "script",
+  "id": "17eddd8f-41fb-4a8a-86ac-06ef5b40b08a",
+  "author": "Codex for 540ly",
+  "description": {
+    "": "Generates the FluidNC tiny-segment-storm fixture design and exports it as an .f3d archive."
+  },
+  "version": "0.1.0",
+  "runOnStartup": false,
+  "supportedOS": "windows|mac",
+  "editEnabled": true
+}

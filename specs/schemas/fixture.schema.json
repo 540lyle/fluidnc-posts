@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Post processor fixture",
+  "type": "object",
+  "required": ["id", "category", "purpose", "invariants"],
+  "properties": {
+    "id": { "type": "string" },
+    "category": { "type": "string" },
+    "purpose": { "type": "string" },
+    "fusion_setup": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "post_runs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "properties": {
+          "id": { "type": "string" },
+          "properties": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "manual_review": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "failure_impact": {
+      "type": "string"
+    },
+    "invariants": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "notes": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": true
+}
