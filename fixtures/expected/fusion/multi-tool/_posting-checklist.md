@@ -1,6 +1,6 @@
 # multi-tool posting checklist
 
-Output folder: `C:\src\fluidnc-posts\fixtures\expected\fusion\multi-tool`
+Output folder: `<repo-root>\fixtures\expected\fusion\multi-tool`
 
 Runs to post:
 

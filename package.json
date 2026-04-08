@@ -1,0 +1,19 @@
+{
+  "name": "fluidnc-posts",
+  "private": true,
+  "description": "Validation tooling for the FluidNC Fusion post repository",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "hooks:install": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tools\\validate\\Install-GitHooks.ps1",
+    "validate:adapter:syntax": "node .\\tools\\validate\\check-cps-syntax.mjs",
+    "validate:adapter:lint": "eslint adapters/fusion/FluidNC.cps",
+    "validate:adapter": "npm run validate:adapter:syntax && npm run validate:adapter:lint",
+    "validate:fixtures": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tools\\validate\\Test-FixtureCaptures.ps1",
+    "validate": "npm run validate:adapter && npm run validate:fixtures"
+  },
+  "devDependencies": {
+    "eslint": "^9.24.0"
+  }
+}

@@ -69,7 +69,7 @@ The repository now has captured Fusion output for the first four high-value fixt
 - `tiny-segment-storm`
 - `split-file`
 
-These are stored under [fixtures/expected/fusion](C:/src/fluidnc-posts/fixtures/expected/fusion) with:
+These are stored under [fixtures/expected/fusion](../fixtures/expected/fusion) with:
 
 - source `.f3d` when available
 - emitted `*.nc`
@@ -118,7 +118,7 @@ flowchart TD
 
 ## Current validator scope
 
-The lightweight validator in [Test-FixtureCaptures.ps1](C:/src/fluidnc-posts/tools/validate/Test-FixtureCaptures.ps1) checks:
+The lightweight validator in [Test-FixtureCaptures.ps1](../tools/validate/Test-FixtureCaptures.ps1) checks:
 
 - `inch-job`: inch mode is preserved across section starts
 - `multi-tool`: tool boundaries, spindle dwell, optional stop behavior, and coolant transitions
@@ -126,6 +126,16 @@ The lightweight validator in [Test-FixtureCaptures.ps1](C:/src/fluidnc-posts/too
 - `split-file`: emitted master/subfile trees and per-file startup safety
 
 It is not a replacement for controller validation. It is the repo's first-pass guardrail against obvious regression in emitted NC.
+
+## Automation
+
+The repo supports one shared validation entry point for local work and CI:
+
+- run `npm install` once per checkout
+- run `npm run hooks:install` once per checkout to enable Git hooks
+- `pre-commit` runs adapter syntax and lint validation
+- `pre-push` runs adapter validation plus `Test-FixtureCaptures.ps1`
+- GitHub PR validation runs the same `npm run validate` command on `windows-latest`
 
 ## Practical posting rules
 

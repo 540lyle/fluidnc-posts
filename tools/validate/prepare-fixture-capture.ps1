@@ -2,7 +2,8 @@ param(
   [Parameter(Mandatory = $true)]
   [string]$FixtureName,
   [string]$DesignFile,
-  [switch]$Force
+  [switch]$Force,
+  [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 )
 
 $ErrorActionPreference = "Stop"
@@ -113,13 +114,13 @@ function Write-IfNeeded {
   Write-Host "Wrote: $Path"
 }
 
-$fixturePath = Join-Path "C:\src\fluidnc-posts\fixtures\cases" (Join-Path $FixtureName "fixture.yaml")
+$fixturePath = Join-Path $RepoRoot (Join-Path "fixtures\cases" (Join-Path $FixtureName "fixture.yaml"))
 if (-not (Test-Path -LiteralPath $fixturePath)) {
   throw "Fixture file not found: $fixturePath"
 }
 
 $fixture = Parse-FixtureFile -Path $fixturePath
-$targetDir = Join-Path "C:\src\fluidnc-posts\fixtures\expected\fusion" $fixture.id
+$targetDir = Join-Path $RepoRoot (Join-Path "fixtures\expected\fusion" $fixture.id)
 New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
 
 if ($DesignFile) {
@@ -173,7 +174,7 @@ foreach ($run in $fixture.runs) {
 $checklist = @()
 $checklist += "# $($fixture.id) posting checklist"
 $checklist += ""
-$checklist += 'Output folder: `C:\src\fluidnc-posts\fixtures\expected\fusion\' + $fixture.id + '`'
+$checklist += 'Output folder: `<repo-root>\fixtures\expected\fusion\' + $fixture.id + '`'
 $checklist += ""
 $checklist += "Runs to post:"
 $checklist += ""

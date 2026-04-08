@@ -1,11 +1,16 @@
 param(
   [ValidateSet("Copy", "HardLink")]
   [string]$Mode = "HardLink",
-  [string]$Source = "C:\src\fluidnc-posts\adapters\fusion\FluidNC.cps",
-  [string]$Destination = "C:\Users\540ly\AppData\Roaming\Autodesk\Fusion 360 CAM\Posts\FluidNC.cps"
+  [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path,
+  [string]$Source,
+  [string]$Destination = (Join-Path $env:APPDATA "Autodesk\Fusion 360 CAM\Posts\FluidNC.cps")
 )
 
 $ErrorActionPreference = "Stop"
+
+if (-not $Source) {
+  $Source = Join-Path $RepoRoot "adapters\fusion\FluidNC.cps"
+}
 
 if (-not (Test-Path -LiteralPath $Source)) {
   throw "Source post not found: $Source"

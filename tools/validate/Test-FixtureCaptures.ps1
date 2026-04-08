@@ -1,10 +1,11 @@
 param(
-  [string[]]$FixtureName
+  [string[]]$FixtureName,
+  [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
 )
 
 $ErrorActionPreference = "Stop"
 
-$root = "C:\src\fluidnc-posts\fixtures\expected\fusion"
+$root = Join-Path $RepoRoot "fixtures\expected\fusion"
 $requestedFixtures = if ($FixtureName) { [System.Collections.Generic.HashSet[string]]::new([string[]]$FixtureName) } else { $null }
 $results = [System.Collections.Generic.List[object]]::new()
 

@@ -18,6 +18,13 @@ This repository is Fusion-first. Contributions should improve the FluidNC experi
 - Machine defaults or examples: update `profiles/`.
 - Contributor or agent guidance: update `docs/` and `llm/`.
 
+## Local validation
+
+- Install Node.js 20 or newer.
+- Run `npm install` once per checkout.
+- Run `npm run hooks:install` once per checkout to enable the repo's `pre-commit` and `pre-push` hooks.
+- Use `npm run validate` before opening or updating a pull request.
+
 ## Pull request checklist
 
 - Open a pull request for every change that targets `main`; direct pushes to `main` are reserved for initial repository bootstrap only.

@@ -1,6 +1,6 @@
 # split-file posting checklist
 
-Output folder: `C:\src\fluidnc-posts\fixtures\expected\fusion\split-file`
+Output folder: `<repo-root>\fixtures\expected\fusion\split-file`
 
 Runs to post:
 
