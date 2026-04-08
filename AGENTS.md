@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This file is the repo-local operating guide for coding agents working in `C:\src\fluidnc-posts`.
+This file is the repo-local operating guide for coding agents working in this repository checkout.
 
 ## Project identity
 

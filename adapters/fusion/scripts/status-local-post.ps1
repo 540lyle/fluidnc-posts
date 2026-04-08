@@ -1,9 +1,14 @@
 param(
-  [string]$RepoPath = "C:\src\fluidnc-posts\adapters\fusion\FluidNC.cps",
-  [string]$LocalPath = "C:\Users\540ly\AppData\Roaming\Autodesk\Fusion 360 CAM\Posts\FluidNC.cps"
+  [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..\..")).Path,
+  [string]$RepoPath,
+  [string]$LocalPath = (Join-Path $env:APPDATA "Autodesk\Fusion 360 CAM\Posts\FluidNC.cps")
 )
 
 $ErrorActionPreference = "Stop"
+
+if (-not $RepoPath) {
+  $RepoPath = Join-Path $RepoRoot "adapters\fusion\FluidNC.cps"
+}
 
 $repo = Get-Item -LiteralPath $RepoPath -Force
 $local = Get-Item -LiteralPath $LocalPath -Force

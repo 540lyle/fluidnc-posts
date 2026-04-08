@@ -1,6 +1,6 @@
 # tiny-segment-storm posting checklist
 
-Output folder: `C:\src\fluidnc-posts\fixtures\expected\fusion\tiny-segment-storm`
+Output folder: `<repo-root>\fixtures\expected\fusion\tiny-segment-storm`
 
 Runs to post:
 

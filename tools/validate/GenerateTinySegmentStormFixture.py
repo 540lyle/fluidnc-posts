@@ -1,10 +1,11 @@
 import adsk.core
 import adsk.fusion
-import os
 import traceback
+from pathlib import Path
 
 
-OUTPUT_PATH = r'C:\src\fluidnc-posts\fixtures\expected\fusion\tiny-segment-storm\fixture-tiny-segment-storm.f3d'
+REPO_ROOT = Path(__file__).resolve().parents[2]
+OUTPUT_PATH = REPO_ROOT / 'fixtures' / 'expected' / 'fusion' / 'tiny-segment-storm' / 'fixture-tiny-segment-storm.f3d'
 
 
 def mm(value: float) -> float:
@@ -120,15 +121,15 @@ def build_fixture() -> str:
     hole_feature = extrude_cut(root, hole_profile, '8 mm')
     hole_feature.name = 'bore_reference_hole'
 
-    os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
+    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     export_manager = design.exportManager
-    archive_options = export_manager.createFusionArchiveExportOptions(OUTPUT_PATH)
+    archive_options = export_manager.createFusionArchiveExportOptions(str(OUTPUT_PATH))
     if not archive_options:
         raise RuntimeError('Failed to create Fusion archive export options.')
     if not export_manager.execute(archive_options):
         raise RuntimeError('Fusion archive export failed.')
 
-    return OUTPUT_PATH
+    return str(OUTPUT_PATH)
 
 
 def run(context):

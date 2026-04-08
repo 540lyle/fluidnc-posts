@@ -10,4 +10,4 @@ After posting:
 
 - keep the emitted `*.nc` in the matching fixture folder
 - keep the matching `*.properties.txt` and `*.review.md` updated
-- run [Test-FixtureCaptures.ps1](C:/src/fluidnc-posts/tools/validate/Test-FixtureCaptures.ps1) before treating the capture as current
+- run [Test-FixtureCaptures.ps1](../../../tools/validate/Test-FixtureCaptures.ps1) before treating the capture as current
