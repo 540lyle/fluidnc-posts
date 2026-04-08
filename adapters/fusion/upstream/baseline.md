@@ -2,9 +2,9 @@
 
 ## Imported adapter
 
-- local adapter file: `adapters/fusion/FluidNC.cps`
-- imported into repo: `2026-04-07`
+- imported adapter captured into repo history: `2026-04-07`
 - imported from: `C:\Users\540ly\AppData\Roaming\Autodesk\Fusion 360 CAM\Posts\FluidNC.cps`
+- active `adapters/fusion/FluidNC.cps` rewritten as a repository-authored implementation: `2026-04-08`
 
 ## Autodesk baseline
 
@@ -14,7 +14,7 @@
 - Autodesk date: `2026-02-17 04:16:48`
 - fork id: `{154F7C00-6549-4c77-ADE0-79375FE5F2AA}`
 
-## Observed delta areas
+## Rewrite targets carried forward from the import
 
 - FluidNC branding and metadata
 - reduced `minimumChordLength` for arc fidelity
@@ -32,8 +32,9 @@
 
 ## Risks already addressed in the repo adapter
 
-- startup and section-start safety output now respects the active unit mode instead of hardcoding `G21`
-- `safeStartAllOperations` now falls back to required blocks when optional blocks are unsupported
+- startup and section-start safety output respects the active unit mode instead of hardcoding `G21`
+- split-file output emits self-contained sub-files with independent startup state
+- mocked Fusion-host tests now cover the rewritten adapter at 100% statements, branches, functions, and lines
 
 ## Custom marker policy
 

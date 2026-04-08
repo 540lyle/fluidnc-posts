@@ -11,9 +11,13 @@ This folder is the Fusion-specific implementation layer.
 
 ## Current state
 
-- `FluidNC.cps` is the imported working adapter from the local Fusion posts folder
+- `FluidNC.cps` is now a repository-authored 3-axis Fusion post implementation
+- the rewrite keeps current fixture-visible behavior while avoiding Autodesk-shaped helper structure
+- the original callback and property surface has been restored so legacy Fusion entry points still exist
+- mocked Fusion-host unit tests cover the adapter at 100% statements, branches, functions, and lines
+- when the local original post exists, the mocked host also runs original-vs-rewrite differential scenarios and fails on emitted NC drift
 - upstream notes live in `upstream/`
-- the imported adapter is intentionally captured before major cleanup so fixtures can be built against current behavior
+- the imported adapter history is retained only as provenance in `upstream/`
 
 ## Expected contents
 
@@ -30,13 +34,15 @@ If you change adapter behavior, say whether the change is:
 - a machine/profile override
 - a Fusion-only implementation concern
 
-## Immediate priorities
+## Current priorities
 
-- add fixtures around inch mode, split files, manual tool changes, and dense segment filtering
-- normalize custom markers without changing behavior unexpectedly
-- fix known risks only after fixture coverage exists
+- preserve the captured fixture contract during manual Fusion posting checks
+- extend the rewrite beyond the current 3-axis fixture families only when new fixtures justify it
+- keep new behavior in plain repo-owned helpers that remain mock-testable outside Fusion
 
 ## Current behavior decisions
 
-- section-start safety output now respects the active post unit mode instead of hardcoding metric
-- `safeStartAllOperations` falls back to normal required blocks when optional blocks are unsupported by the adapter
+- section starts always restate restart-sensitive modal state
+- split-file output emits a placeholder master plus self-contained sub-files
+- segment filtering flushes deferred endpoints before rapids, arcs, section ends, and close
+- legacy helper names from the imported adapter are preserved through compatibility wrappers while internals stay repo-owned

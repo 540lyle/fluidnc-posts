@@ -10,6 +10,8 @@ adapters/fusion/*.local.cps
 adapters/fusion/testdata/out/
 tools/_inspect/
 node_modules/
+coverage/
+tmp/
 
 *.log
 *.tmp
