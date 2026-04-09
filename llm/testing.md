@@ -11,6 +11,7 @@
 - When guiding manual Fusion testing, include the concrete linked-folder or local-post setup from `docs/install-fusion.md`; do not just say "use a linked folder" without the actual steps.
 - `npm run test:unit` now includes a differential mocked-host comparison against the local original Fusion post when that original file exists, so same-input NC drift is caught before manual posting when the mock host covers the path.
 - `npm run audit:fixtures:original` compares the local original Fusion post under the mocked host against the checked-in fixture captures and is the fastest way to see whether a failure is still a host-fidelity gap or just a shallow scenario trace.
+- The shipped repo post no longer preserves the imported helper/property surface. If old-post helper access is needed in tests, add that adaptation in the test harness instead of restoring pass-through wrappers in `FluidNC.cps`.
 - Repo automation entry point is `npm run validate`; `npm run hooks:install` enables matching `pre-commit` and `pre-push` checks locally.
 - Treat CI as a repo-owned blocker only: do not redesign it to depend on a moving Autodesk install or a live Fusion session. Keep exact original-vs-rewrite installed-post comparisons local unless the original artifact is explicitly pinned in-repo or provisioned into CI.
 - Before declaring real-machine readiness, remind the user to verify the FluidNC controller values `junction_deviation_mm = 0.01` and `arc_tolerance_mm = 0.002`, because fixture parity only proves the post echoed them.

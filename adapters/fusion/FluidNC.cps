@@ -3,7 +3,7 @@ vendor = "FluidNC";
 vendorUrl = "https://github.com/bdring/FluidNC/wiki";
 longDescription = "Repository-authored FluidNC post for 3-axis Fusion milling workflows. It focuses on safe restarts, split outputs, manual tool changes, and planner-aware segment filtering.";
 certificationLevel = 2;
-legal = "Copyright (C) 2012-2026 by Autodesk, Inc.";
+legal = "Copyright (C) 2026 Lyle Lohman. Repository-authored rewrite; see upstream notes for Autodesk provenance.";
 minimumRevision = 45917;
 
 extension = "nc";
@@ -109,7 +109,7 @@ properties = {
   },
   safeStartAllOperations: {
     title: "Safe start all operations",
-    description: "Kept for compatibility. This post always restates restart-sensitive modal state at section boundaries.",
+    description: "Restate restart-sensitive modal state at section boundaries even when the controller lacks optional block support.",
     group: "preferences",
     type: "boolean",
     value: false,
@@ -118,30 +118,6 @@ properties = {
   toolAsName: {
     title: "Tool as name",
     description: "Annotate tool changes with the tool description instead of relying on operator memory.",
-    group: "preferences",
-    type: "boolean",
-    value: false,
-    scope: "post"
-  },
-  useG95: {
-    title: "Use feed per revolution (G95)",
-    description: "Compatibility property retained for the original post surface.",
-    group: "preferences",
-    type: "boolean",
-    value: false,
-    scope: "post"
-  },
-  useDPMFeeds: {
-    title: "Use DPM feeds",
-    description: "Compatibility property retained for the original post surface.",
-    group: "preferences",
-    type: "boolean",
-    value: false,
-    scope: "post"
-  },
-  useTiltedWorkplane: {
-    title: "Use tilted workplane",
-    description: "Compatibility property retained for the original post surface.",
     group: "preferences",
     type: "boolean",
     value: false,
@@ -165,7 +141,7 @@ properties = {
   },
   fluidncArcTolerance: {
     title: "FluidNC arc tolerance (mm)",
-    description: "Reference value echoed in the output header.",
+    description: "Display only. Echo this value in the output header and set firmware arc_tolerance_mm to match.",
     group: "fluidnc",
     type: "number",
     value: 0.002,
@@ -173,7 +149,7 @@ properties = {
   },
   fluidncJunctionDeviation: {
     title: "FluidNC junction deviation (mm)",
-    description: "Reference value echoed in the output header.",
+    description: "Display only. Echo this value in the output header and set firmware junction_deviation_mm to match.",
     group: "fluidnc",
     type: "number",
     value: 0.01,
@@ -280,23 +256,53 @@ var gUnitModal = createOutputVariable({}, gFormat);
 
 var runtime = createRuntimeState();
 
-function createRuntimeState() {
+function createCachedProperties() {
+  var minimumSegmentLength = Number(getProperty("minimumSegmentLength")) || 0;
+  var minimumSegment = minimumSegmentLength > 0 ? spatial(minimumSegmentLength, MM) : 0;
+
   return {
-    sequenceNumber: Number(getProperty("sequenceNumberStart")) || 10,
+    sequenceNumberStart: Number(getProperty("sequenceNumberStart")) || 10,
+    sequenceMode: String(getProperty("showSequenceNumbers")),
+    sequenceNumberIncrement: Number(getProperty("sequenceNumberIncrement")) || 1,
+    splitMode: String(getProperty("splitFile")),
+    safePositionMethod: String(getProperty("safePositionMethod")),
+    optionalStop: Boolean(getProperty("optionalStop")),
+    useCoolant: Boolean(getProperty("useCoolant")),
+    spindleWarmupDelay: Number(getProperty("spindleWarmupDelay")) || 0,
+    safeStartAllOperations: Boolean(getProperty("safeStartAllOperations")),
+    useToolCall: Boolean(getProperty("useToolCall")),
+    toolAsName: Boolean(getProperty("toolAsName")),
+    useM06: Boolean(getProperty("useM06")),
+    minimumSegmentLength: minimumSegmentLength,
+    minimumSegmentSquared: minimumSegment * minimumSegment
+  };
+}
+
+function resetRuntimeSessionFields(state, redirected) {
+  state.currentPosition = undefined;
+  state.lastOutputPosition = undefined;
+  state.pendingLinearMove = undefined;
+  state.activeWorkOffset = "";
+  state.activeToolNumber = undefined;
+  state.activeSpindleSpeed = undefined;
+  state.pendingSpindleSpeed = undefined;
+  state.spindleDirection = "";
+  state.coolantCode = "";
+  state.activePlane = undefined;
+  state.redirected = !!redirected;
+}
+
+function createRuntimeState() {
+  var props = createCachedProperties();
+  var state = {
+    props: props,
+    sequenceNumber: props.sequenceNumberStart,
     currentSectionId: undefined,
-    currentPosition: undefined,
-    lastOutputPosition: undefined,
-    pendingLinearMove: undefined,
-    activeWorkOffset: "",
-    activeToolNumber: undefined,
-    activeSpindleSpeed: undefined,
-    pendingSpindleSpeed: undefined,
-    spindleDirection: "",
-    coolantCode: "",
-    activePlane: undefined,
-    redirected: false,
+    warnedWorkOffsets: {},
     splitCount: 0
   };
+  resetRuntimeSessionFields(state, false);
+  return state;
 }
 
 function resetOutputState() {
@@ -376,11 +382,10 @@ function spindleWord(speed) {
 }
 
 function shouldNumberBlock(isToolChangeBlock) {
-  var mode = String(getProperty("showSequenceNumbers"));
-  if (mode == "true") {
+  if (runtime.props.sequenceMode == "true") {
     return true;
   }
-  if (mode == "toolChange") {
+  if (runtime.props.sequenceMode == "toolChange") {
     return !!isToolChangeBlock;
   }
   return false;
@@ -388,25 +393,23 @@ function shouldNumberBlock(isToolChangeBlock) {
 
 function nextSequenceWord() {
   var word = "N" + runtime.sequenceNumber;
-  runtime.sequenceNumber += Number(getProperty("sequenceNumberIncrement")) || 1;
+  runtime.sequenceNumber += runtime.props.sequenceNumberIncrement;
   return word;
 }
 
-function flattenWords(words) {
-  var flattened = [];
+function filterWords(words) {
+  var filtered = [];
   var index;
   for (index = 0; index < words.length; index += 1) {
-    if (words[index] instanceof Array) {
-      flattened = flattened.concat(flattenWords(words[index]));
-    } else if (words[index]) {
-      flattened.push(words[index]);
+    if (words[index]) {
+      filtered.push(words[index]);
     }
   }
-  return flattened;
+  return filtered;
 }
 
 function fluidncWriteBlock(words, isToolChangeBlock) {
-  var filtered = flattenWords(words);
+  var filtered = filterWords(words);
   if (shouldNumberBlock(isToolChangeBlock)) {
     filtered.unshift(nextSequenceWord());
   }
@@ -424,7 +427,7 @@ function getUnitCodeNumber() {
 }
 
 function getProgramLabel() {
-  return formatComment(programName || "program");
+  return fluidncFormatComment(programName || "program");
 }
 
 function getSectionLabel(section, index) {
@@ -438,6 +441,10 @@ function getSectionLabel(section, index) {
 function getWorkOffsetCode(section) {
   var offset = section && section.workOffset ? Number(section.workOffset) : 1;
   if (!(offset >= 1 && offset <= 6)) {
+    if (!runtime.warnedWorkOffsets[offset]) {
+      runtime.warnedWorkOffsets[offset] = true;
+      warning("Unsupported work offset " + String(offset) + "; using G54.");
+    }
     offset = 1;
   }
   return "G" + String(53 + offset);
@@ -488,16 +495,16 @@ function writeToolComments() {
       comment += " - ZMIN=" + xyzFormat.format(Number(entry.zMin));
     }
     var toolType = typeof getToolTypeName == "function" ? getToolTypeName(tool.type) : "";
-    comment += " - " + formatComment(toolType || tool.description || "tool");
-    writeComment(comment);
+    comment += " - " + fluidncFormatComment(toolType || tool.description || "tool");
+    fluidncWriteComment(comment);
   }
 }
 
 function writeConfigComments() {
-  writeComment("FluidNC config: arc_tol=" + String(getProperty("fluidncArcTolerance")) + "mm" +
+  fluidncWriteComment("FluidNC config: arc_tol=" + String(getProperty("fluidncArcTolerance")) + "mm" +
     " junc_dev=" + String(getProperty("fluidncJunctionDeviation")) + "mm" +
-    " min_seg=" + String(getProperty("minimumSegmentLength")) + "mm");
-  writeComment("Ensure firmware arc_tolerance_mm and junction_deviation_mm match these values");
+    " min_seg=" + String(runtime.props.minimumSegmentLength) + "mm");
+  fluidncWriteComment("Ensure firmware arc_tolerance_mm and junction_deviation_mm match these values");
 }
 
 function fluidncWriteProgramHeader() {
@@ -507,106 +514,96 @@ function fluidncWriteProgramHeader() {
   writeConfigComments();
 }
 
-function fluidncGetSetting(setting, defaultValue) {
-  if (!setting) {
-    return defaultValue;
-  }
-
-  var parts = String(setting).split(".");
-  var current = settings;
-  var index;
-
-  for (index = 0; index < parts.length; index += 1) {
-    if (current === undefined || current === null || current[parts[index]] === undefined) {
-      return defaultValue;
-    }
-    current = current[parts[index]];
-  }
-
-  return current;
-}
-
-function writeModalReset() {
-  writeBlock(["G90", "G94", getUnitCode(), "G17"], false);
-}
-
 function writeWorkOffset(section, forceOutput) {
   var code = getWorkOffsetCode(section);
   if (forceOutput || runtime.activeWorkOffset != code) {
     runtime.activeWorkOffset = code;
-    writeBlock([code], false);
+    fluidncWriteBlock([code], false);
   } else {
     runtime.activeWorkOffset = code;
   }
 }
 
 function getClearanceHeight(section) {
+  var sectionHeight;
+  var runtimeHeight;
   if (section && typeof section.getInitialPosition == "function") {
     var position = section.getInitialPosition();
     if (position && position.z !== undefined) {
-      return position.z;
+      sectionHeight = position.z;
     }
   }
   if (runtime.currentPosition && runtime.currentPosition.z !== undefined) {
-    return runtime.currentPosition.z;
+    runtimeHeight = runtime.currentPosition.z;
   }
-  return undefined;
+  if (sectionHeight === undefined) {
+    return runtimeHeight;
+  }
+  if (runtimeHeight === undefined) {
+    return sectionHeight;
+  }
+  return Math.max(sectionHeight, runtimeHeight);
 }
 
 function writeSafeRetract(section) {
-  if (String(getProperty("safePositionMethod")) == "clearanceHeight") {
+  if (runtime.props.safePositionMethod == "clearanceHeight") {
     var clearanceHeight = getClearanceHeight(section);
     if (clearanceHeight !== undefined) {
-      writeBlock(["G0", axisWord("Z", clearanceHeight)], false);
+      fluidncWriteBlock(["G0", axisWord("Z", clearanceHeight)], false);
     }
     return;
   }
-  writeBlock(["G53", "G0", "Z0"], false);
-}
-
-function fluidncWriteRetract() {
-  writeSafeRetract(currentSection);
+  fluidncWriteBlock(["G53", "G0", "Z0"], false);
 }
 
 function setCurrentPosition(x, y, z) {
-  var base = runtime.currentPosition || getCurrentPosition();
-  runtime.currentPosition = {
-    x: x === undefined ? base.x : x,
-    y: y === undefined ? base.y : y,
-    z: z === undefined ? base.z : z
-  };
+  var base = runtime.currentPosition;
+  if (!base) {
+    base = getCurrentPosition();
+    runtime.currentPosition = {
+      x: base && base.x !== undefined ? base.x : 0,
+      y: base && base.y !== undefined ? base.y : 0,
+      z: base && base.z !== undefined ? base.z : 0
+    };
+    base = runtime.currentPosition;
+  }
+  if (x !== undefined) {
+    base.x = x;
+  }
+  if (y !== undefined) {
+    base.y = y;
+  }
+  if (z !== undefined) {
+    base.z = z;
+  }
+  return base;
 }
 
 function rememberOutputPosition(x, y, z) {
-  setCurrentPosition(x, y, z);
-  runtime.lastOutputPosition = {
-    x: runtime.currentPosition.x,
-    y: runtime.currentPosition.y,
-    z: runtime.currentPosition.z
-  };
+  var current = setCurrentPosition(x, y, z);
+  var last = runtime.lastOutputPosition;
+  if (!last) {
+    runtime.lastOutputPosition = {
+      x: current.x,
+      y: current.y,
+      z: current.z
+    };
+    return;
+  }
+  last.x = current.x;
+  last.y = current.y;
+  last.z = current.z;
 }
 
 function stopCoolant() {
   if (runtime.coolantCode) {
-    writeBlock(["M9"], false);
+    fluidncWriteBlock(["M9"], false);
     runtime.coolantCode = "";
   }
 }
 
-function fluidncGetCoolantCodes(coolant) {
-  if (coolant == COOLANT_OFF) {
-    return ["M9"];
-  }
-  var code = coolantCodeForSection({
-    getTool: function () {
-      return { coolant: coolant };
-    }
-  });
-  return code ? [code] : [];
-}
-
 function coolantCodeForSection(section) {
-  if (!getProperty("useCoolant")) {
+  if (!runtime.props.useCoolant) {
     return "";
   }
 
@@ -633,71 +630,56 @@ function startCoolant(section) {
     return;
   }
   stopCoolant();
-  writeBlock([code], false);
+  fluidncWriteBlock([code], false);
   runtime.coolantCode = code;
-}
-
-function fluidncSetCoolant(coolant) {
-  if (coolant == COOLANT_OFF) {
-    stopCoolant();
-    return fluidncGetCoolantCodes(coolant);
-  }
-
-  startCoolant({
-    getTool: function () {
-      return { coolant: coolant };
-    }
-  });
-  return fluidncGetCoolantCodes(coolant);
 }
 
 function stopSpindle() {
   if (runtime.spindleDirection) {
-    writeBlock(["M5"], false);
+    fluidncWriteBlock(["M5"], false);
     runtime.spindleDirection = "";
   }
 }
 
-function shouldStartSpindle(section, forceStart) {
+function resolveSpindle(section) {
   var tool = section.getTool();
-  var speed = runtime.pendingSpindleSpeed !== undefined ? runtime.pendingSpindleSpeed : Number(tool.spindleRPM || 0);
-  var direction = tool.clockwise === false ? "M4" : "M3";
+  return {
+    speed: runtime.pendingSpindleSpeed !== undefined ? runtime.pendingSpindleSpeed : Number(tool.spindleRPM || 0),
+    direction: tool.clockwise === false ? "M4" : "M3"
+  };
+}
 
+function shouldStartSpindle(section, forceStart, spindle) {
+  var nextSpindle = spindle || resolveSpindle(section);
   return Boolean(forceStart) ||
     !runtime.spindleDirection ||
-    runtime.activeSpindleSpeed !== speed ||
-    runtime.spindleDirection !== direction;
+    runtime.activeSpindleSpeed !== nextSpindle.speed ||
+    runtime.spindleDirection !== nextSpindle.direction;
 }
 
 function fluidncStartSpindle(section, forceStart) {
-  var tool = section.getTool();
-  var speed = runtime.pendingSpindleSpeed !== undefined ? runtime.pendingSpindleSpeed : Number(tool.spindleRPM || 0);
-  var direction = tool.clockwise === false ? "M4" : "M3";
+  var spindle = resolveSpindle(section);
 
-  if (!shouldStartSpindle(section, forceStart)) {
-    runtime.activeSpindleSpeed = speed;
+  if (!shouldStartSpindle(section, forceStart, spindle)) {
+    runtime.activeSpindleSpeed = spindle.speed;
     runtime.pendingSpindleSpeed = undefined;
     return false;
   }
 
-  writeBlock([spindleWord(speed), direction], true);
-  runtime.activeSpindleSpeed = speed;
+  fluidncWriteBlock([spindleWord(spindle.speed), spindle.direction], true);
+  runtime.activeSpindleSpeed = spindle.speed;
   runtime.pendingSpindleSpeed = undefined;
-  runtime.spindleDirection = direction;
+  runtime.spindleDirection = spindle.direction;
 
-  if (Number(getProperty("spindleWarmupDelay")) > 0) {
-    writeBlock(["G4", "P" + formatSeconds(Number(getProperty("spindleWarmupDelay")))], false);
+  if (runtime.props.spindleWarmupDelay > 0) {
+    fluidncWriteBlock(["G4", "P" + formatSeconds(runtime.props.spindleWarmupDelay)], false);
   }
   return true;
 }
 
-function fluidncGetFeed(feed) {
-  return feedWord(feed);
-}
-
 function fluidncWriteToolCall(tool, announceChange) {
-  if (getProperty("useToolCall")) {
-    if (getProperty("toolAsName") && tool.description) {
+  if (runtime.props.useToolCall) {
+    if (runtime.props.toolAsName && tool.description) {
       fluidncWriteComment("TOOL " + fluidncFormatComment(tool.description));
     } else {
       fluidncWriteBlock(["T" + String(tool.number)], true);
@@ -706,22 +688,18 @@ function fluidncWriteToolCall(tool, announceChange) {
   if (announceChange) {
     fluidncWriteComment("CHANGE TO T" + String(tool.number));
   }
-  if (getProperty("useM06")) {
+  if (runtime.props.useM06) {
     fluidncWriteBlock(["M6"], true);
   }
   runtime.activeToolNumber = tool.number;
-  forceModals();
-}
-
-function fluidncWriteToolBlock() {
-  fluidncWriteBlock(Array.prototype.slice.call(arguments), true);
+  fluidncForceModals();
 }
 
 function buildSplitFileName(section) {
   runtime.splitCount += 1;
   var baseName = cleanProgramToken(programName || "program");
   var tool = section.getTool();
-  if (String(getProperty("splitFile")) == "toolpath") {
+  if (runtime.props.splitMode == "toolpath") {
     return baseName + "_" + String(runtime.splitCount) + "_" + getSectionLabel(section, runtime.splitCount - 1) + "_T" + String(tool.number);
   }
   return baseName + "_" + String(runtime.splitCount) + "_T" + String(tool.number);
@@ -732,22 +710,13 @@ function openSplitOutput(section) {
   var folder = FileSystem.getFolderPath(getOutputPath());
   var filePath = FileSystem.getCombinedPath(folder, subprogram + "." + extension);
 
-  writeComment("Load tool number " + String(section.getTool().number) + " and subprogram " + subprogram);
+  fluidncWriteComment("Load tool number " + String(section.getTool().number) + " and subprogram " + subprogram);
   redirectToFile(filePath);
 
-  runtime.redirected = true;
-  runtime.activeWorkOffset = "";
-  runtime.activeToolNumber = undefined;
-  runtime.activeSpindleSpeed = undefined;
-  runtime.pendingSpindleSpeed = undefined;
-  runtime.spindleDirection = "";
-  runtime.coolantCode = "";
-  runtime.pendingLinearMove = undefined;
-  runtime.lastOutputPosition = undefined;
-  runtime.currentPosition = undefined;
+  resetRuntimeSessionFields(runtime, true);
   resetOutputState();
 
-  writeComment(getProgramLabel());
+  fluidncWriteComment(getProgramLabel());
   fluidncWriteProgramStart();
   writeToolComments();
   writeln("");
@@ -762,38 +731,24 @@ function closeSplitOutput() {
   }
   stopCoolant();
   writeSafeRetract(currentSection);
-  writeBlock(["G53", "G0", "X0", "Y0"], false);
-  writeBlock(["M5"], false);
+  fluidncWriteBlock(["G53", "G0", "X0", "Y0"], false);
+  fluidncWriteBlock(["M5"], false);
   runtime.spindleDirection = "";
-  writeBlock(["M30"], false);
+  fluidncWriteBlock(["M30"], false);
   closeRedirection();
 
-  runtime.redirected = false;
-  runtime.activeWorkOffset = "";
-  runtime.activeToolNumber = undefined;
-  runtime.activeSpindleSpeed = undefined;
-  runtime.pendingSpindleSpeed = undefined;
-  runtime.spindleDirection = "";
-  runtime.coolantCode = "";
-  runtime.pendingLinearMove = undefined;
-  runtime.lastOutputPosition = undefined;
-  runtime.currentPosition = undefined;
+  resetRuntimeSessionFields(runtime, false);
 }
 
-function distanceSquared(fromPosition, toPosition) {
-  var dx = toPosition.x - fromPosition.x;
-  var dy = toPosition.y - fromPosition.y;
-  var dz = toPosition.z - fromPosition.z;
+function distanceSquaredTo(anchor, x, y, z) {
+  var dx = x - anchor.x;
+  var dy = y - anchor.y;
+  var dz = z - anchor.z;
   return dx * dx + dy * dy + dz * dz;
 }
 
-function fluidncFlushPendingLinearMove() {
-  flushPendingLinearMove();
-}
-
 function shouldFilterLinearMove(x, y, z) {
-  var threshold = Number(getProperty("minimumSegmentLength"));
-  if (!(threshold > 0)) {
+  if (!(runtime.props.minimumSegmentSquared > 0)) {
     return false;
   }
 
@@ -802,12 +757,9 @@ function shouldFilterLinearMove(x, y, z) {
     return false;
   }
 
-  var move = { x: x, y: y, z: z };
-  var minDistance = spatial(threshold, MM);
-  var minDistanceSquared = minDistance * minDistance;
-  var measuredDistance = distanceSquared(anchor, move);
+  var measuredDistance = distanceSquaredTo(anchor, x, y, z);
 
-  return measuredDistance > 0 && measuredDistance < minDistanceSquared;
+  return measuredDistance > 0 && measuredDistance < runtime.props.minimumSegmentSquared;
 }
 
 function emitLinearMove(x, y, z, feed) {
@@ -817,10 +769,10 @@ function emitLinearMove(x, y, z, feed) {
   var fWord = feedOutput.format(feed);
 
   if (xWord || yWord || zWord) {
-    writeBlock([gMotionModal.format(1), xWord, yWord, zWord, fWord], false);
+    fluidncWriteBlock([gMotionModal.format(1), xWord, yWord, zWord, fWord], false);
     rememberOutputPosition(x, y, z);
   } else if (fWord) {
-    writeBlock([gMotionModal.format(1), fWord], false);
+    fluidncWriteBlock([gMotionModal.format(1), fWord], false);
   }
 }
 
@@ -834,7 +786,7 @@ function flushPendingLinearMove() {
 }
 
 function writeSectionStart(section) {
-  var splitMode = String(getProperty("splitFile"));
+  var splitMode = runtime.props.splitMode;
   var tool = section.getTool();
   var toolChange = runtime.activeToolNumber !== tool.number;
   var forceWorkOffset = toolChange || runtime.activeWorkOffset !== getWorkOffsetCode(section);
@@ -843,7 +795,7 @@ function writeSectionStart(section) {
   var needsSectionSpacer = splitMode == "none" && (toolChange || laterSection);
   var redirectedAtStart = runtime.redirected;
 
-  writeBlock(["G90", "G94", getUnitCode(), "G17"], false);
+  fluidncWriteBlock(["G90", "G94", getUnitCode(), "G17"], false);
   gAbsIncModal.format(90);
   gFeedModeModal.format(94);
   gUnitModal.format(getUnitCodeNumber());
@@ -873,23 +825,23 @@ function writeSectionStart(section) {
   if (needsSectionSpacer) {
     writeln("");
   }
-  writeComment(getSectionLabel(section, runtime.splitCount || 0));
+  fluidncWriteComment(getSectionLabel(section, runtime.splitCount || 0));
 
   if (splitMode != "none" && toolChange && !laterSection) {
     writeSafeRetract(section);
   }
 
-  if (toolChange && laterSection && getProperty("optionalStop")) {
-    writeBlock(["M1"], true);
+  if (toolChange && laterSection && runtime.props.optionalStop) {
+    fluidncWriteBlock(["M1"], true);
   }
 
   if (toolChange || runtime.activeToolNumber === undefined) {
-    writeToolCall(tool, toolChange && laterSection);
+    fluidncWriteToolCall(tool, toolChange && laterSection);
   }
 
-  startSpindle(section, toolChange || splitMode != "none");
+  fluidncStartSpindle(section, toolChange || splitMode != "none");
   if (toolChange || splitMode != "none") {
-    writeBlock([gPlaneModal.format(17), gAbsIncModal.format(90), gFeedModeModal.format(94)], false);
+    fluidncWriteBlock([gPlaneModal.format(17), gAbsIncModal.format(90), gFeedModeModal.format(94)], false);
     runtime.activePlane = 17;
   }
   writeWorkOffset(section, forceWorkOffset);
@@ -899,90 +851,45 @@ function writeSectionStart(section) {
   }
 }
 
-function fluidncWriteStartBlocks(isRequired, code) {
-  var sectionId = typeof getCurrentSectionId == "function" ? getCurrentSectionId() : runtime.currentSectionId;
-  if (runtime.currentSectionId !== sectionId) {
-    runtime.currentSectionId = sectionId;
-    forceModals();
-  }
-  if (typeof code == "function") {
-    code();
-  }
-}
-
-function fluidncWriteWCS(section) {
-  writeWorkOffset(section || currentSection, true);
-}
-
 function fluidncWriteInitialPositioning(position, isRequired) {
   if (position) {
     var requiresFullStart = isRequired === undefined ? true : !!isRequired;
-    var safeStartRequiresFallback = !requiresFullStart && getProperty("safeStartAllOperations");
-    forceModals(gAbsIncModal, gMotionModal);
-    writeBlock(["G53", "G0", "Z0"], false);
-    if (requiresFullStart || safeStartRequiresFallback) {
-      forceModals(gMotionModal);
-      writeBlock([formatWords(gAbsIncModal.format(90), gPlaneModal.format(17)), gMotionModal.format(0), xOutput.format(position.x), yOutput.format(position.y)], false);
-      rememberOutputPosition(position.x, position.y, runtime.currentPosition && runtime.currentPosition.z);
-      if (position.z !== undefined && position.z !== null) {
-        writeBlock([gMotionModal.format(0), zOutput.format(position.z)], false);
-        rememberOutputPosition(position.x, position.y, position.z);
-      }
-      runtime.activePlane = 17;
-      forceModals(gMotionModal);
-      forceFeed();
-      return;
-    }
-    writeBlock([formatWords(gAbsIncModal.format(90), gPlaneModal.format(17)), gMotionModal.format(0), xOutput.format(position.x), yOutput.format(position.y)], false);
+    var safeStartRequiresFallback = !requiresFullStart && runtime.props.safeStartAllOperations;
+    fluidncForceModals(gAbsIncModal, gMotionModal);
+    fluidncWriteBlock(["G53", "G0", "Z0"], false);
+    fluidncWriteBlock([gAbsIncModal.format(90), gPlaneModal.format(17), gMotionModal.format(0), xOutput.format(position.x), yOutput.format(position.y)], false);
     rememberOutputPosition(position.x, position.y, runtime.currentPosition && runtime.currentPosition.z);
     if (position.z !== undefined && position.z !== null) {
-      writeBlock([gMotionModal.format(0), zOutput.format(position.z)], false);
+      fluidncWriteBlock([gMotionModal.format(0), zOutput.format(position.z)], false);
       rememberOutputPosition(position.x, position.y, position.z);
     }
     runtime.activePlane = 17;
+    if (requiresFullStart || safeStartRequiresFallback) {
+      fluidncForceModals(gMotionModal);
+      fluidncForceFeed();
+    }
   }
 }
 
 function finishMainProgram() {
   stopCoolant();
   writeSafeRetract(currentSection || (typeof getNumberOfSections == "function" && getNumberOfSections() > 0 ? getSection(getNumberOfSections() - 1) : undefined));
-  writeBlock(["G53", "G0", "X0", "Y0"], false);
+  fluidncWriteBlock(["G53", "G0", "X0", "Y0"], false);
   stopSpindle();
-  writeBlock(["M30"], false);
+  fluidncWriteBlock(["M30"], false);
 }
 
 function fluidncWriteProgramStart() {
-  forceModals();
+  fluidncForceModals();
   gUnitModal.reset();
-  writeBlock([gAbsIncModal.format(90), gFeedModeModal.format(94)], false);
-  writeBlock([gPlaneModal.format(17)], false);
-  writeBlock([gUnitModal.format(getUnitCodeNumber())], false);
+  fluidncWriteBlock([gAbsIncModal.format(90), gFeedModeModal.format(94)], false);
+  fluidncWriteBlock([gPlaneModal.format(17)], false);
+  fluidncWriteBlock([gUnitModal.format(getUnitCodeNumber())], false);
   gAbsIncModal.format(90);
   gFeedModeModal.format(94);
   gUnitModal.format(getUnitCodeNumber());
   gPlaneModal.format(17);
   runtime.activePlane = 17;
-}
-
-function fluidncWriteProgramEnd() {
-  finishMainProgram();
-}
-
-function fluidncActivateMachine() {
-  return machineConfiguration;
-}
-
-function fluidncValidateToolData() {
-  return true;
-}
-
-function fluidncValidateCommonParameters() {
-  fluidncValidateToolData();
-  return true;
-}
-
-function fluidncGetBodyLength(tool) {
-  return Number((tool && (tool.bodyLength || tool.fluteLength || tool.overallLength)) || 0);
 }
 
 function fluidncForceFeed() {
@@ -994,10 +901,6 @@ function fluidncForceXYZ() {
   xOutput.reset();
   yOutput.reset();
   zOutput.reset();
-  return true;
-}
-
-function fluidncForceABC() {
   return true;
 }
 
@@ -1045,75 +948,6 @@ function fluidncForceCircular(plane) {
   return plane;
 }
 
-function fluidncGetForwardDirection(section) {
-  if (section && section.workPlane && section.workPlane.forward) {
-    return section.workPlane.forward;
-  }
-  return getCurrentDirection();
-}
-
-function fluidncGetRetractParameters() {
-  return {
-    method: String(getProperty("safePositionMethod")),
-    words: ["Z0"]
-  };
-}
-
-function fluidncSubprogramsAreSupported() {
-  return true;
-}
-
-function fluidncMachineSimulation() {
-  return false;
-}
-
-function fluidncDefineMachine() {
-  return machineConfiguration;
-}
-
-function fluidncDefineWorkPlane(section) {
-  return fluidncGetForwardDirection(section || currentSection);
-}
-
-function fluidncIsTCPSupportedByOperation() {
-  return false;
-}
-
-function fluidncGetWorkPlaneMachineABC() {
-  return {
-    x: 0,
-    y: 0,
-    z: 0,
-    isNonZero: function () {
-      return false;
-    }
-  };
-}
-
-function fluidncPositionABC(abc) {
-  return abc;
-}
-
-function fluidncForceWorkPlane() {
-  return true;
-}
-
-function fluidncCancelWCSRotation() {
-  return false;
-}
-
-function fluidncCancelWorkPlane() {
-  return false;
-}
-
-function fluidncSetWorkPlane() {
-  return false;
-}
-
-function fluidncGetOffsetCode() {
-  return "";
-}
-
 function fluidncOnMoveToSafeRetractPosition() {
   writeSafeRetract(currentSection);
 }
@@ -1130,9 +964,9 @@ function fluidncOnOpen() {
   resetRuntime();
   fluidncWriteProgramHeader();
 
-  if (String(getProperty("splitFile")) == "none") {
+  if (runtime.props.splitMode == "none") {
     var firstSection = typeof getNumberOfSections == "function" && getNumberOfSections() > 0 ? getSection(0) : currentSection;
-    writeBlock(["G90", getUnitCode(), "G17"], false);
+    fluidncWriteBlock(["G90", getUnitCode(), "G17"], false);
     writeWorkOffset(firstSection, true);
     writeSafeRetract(firstSection);
     fluidncWriteProgramStart();
@@ -1152,9 +986,10 @@ function fluidncOnDwell(seconds) {
 }
 
 function fluidncOnSpindleSpeed(spindleSpeed) {
-  runtime.pendingSpindleSpeed = Number(spindleSpeed);
-  if (runtime.spindleDirection) {
-    runtime.activeSpindleSpeed = Number(spindleSpeed);
+  var nextSpeed = Number(spindleSpeed);
+  runtime.pendingSpindleSpeed = nextSpeed;
+  if (runtime.spindleDirection && nextSpeed !== runtime.activeSpindleSpeed) {
+    runtime.activeSpindleSpeed = nextSpeed;
     fluidncWriteBlock([spindleWord(runtime.activeSpindleSpeed)], false);
   }
 }
@@ -1172,7 +1007,7 @@ function fluidncOnCircular(clockwise, cx, cy, cz, x, y, z, feed) {
       linearize(tolerance);
       return;
     }
-    forceCircular(plane);
+    fluidncForceCircular(plane);
     if (plane == PLANE_XY) {
       words = [gPlaneModal.format(17), gMotionModal.format(clockwise ? 2 : 3), xOutput.format(x), iOutput.format(cx - start.x), jOutput.format(cy - start.y), feedOutput.format(feed)];
     } else if (plane == PLANE_ZX) {
@@ -1184,13 +1019,13 @@ function fluidncOnCircular(clockwise, cx, cy, cz, x, y, z, feed) {
       return;
     }
   } else if (plane == PLANE_XY) {
-    forceCircular(plane);
+    fluidncForceCircular(plane);
     words = [gPlaneModal.format(17), gMotionModal.format(clockwise ? 2 : 3), xOutput.format(x), yOutput.format(y), zOutput.format(z), iOutput.format(cx - start.x), jOutput.format(cy - start.y), feedOutput.format(feed)];
   } else if (plane == PLANE_ZX) {
-    forceCircular(plane);
+    fluidncForceCircular(plane);
     words = [gPlaneModal.format(18), gMotionModal.format(clockwise ? 2 : 3), xOutput.format(x), yOutput.format(y), zOutput.format(z), iOutput.format(cx - start.x), kOutput.format(cz - start.z), feedOutput.format(feed)];
   } else if (plane == PLANE_YZ) {
-    forceCircular(plane);
+    fluidncForceCircular(plane);
     words = [gPlaneModal.format(19), gMotionModal.format(clockwise ? 2 : 3), xOutput.format(x), yOutput.format(y), zOutput.format(z), jOutput.format(cy - start.y), kOutput.format(cz - start.z), feedOutput.format(feed)];
   } else {
     linearize(tolerance);
@@ -1217,19 +1052,19 @@ function fluidncOnCommand(command) {
     stopSpindle();
     break;
   case COMMAND_START_SPINDLE:
-    startSpindle(currentSection, true);
+    fluidncStartSpindle(currentSection, true);
     break;
   case COMMAND_OPTIONAL_STOP:
-    writeBlock(["M1"], true);
+    fluidncWriteBlock(["M1"], true);
     break;
   case COMMAND_STOP:
-    writeBlock(["M0"], true);
+    fluidncWriteBlock(["M0"], true);
     break;
   case COMMAND_END:
-    writeBlock(["M30"], false);
+    fluidncWriteBlock(["M30"], false);
     break;
   case COMMAND_LOAD_TOOL:
-    writeToolCall(currentSection.getTool(), true);
+    fluidncWriteToolCall(currentSection.getTool(), true);
     break;
   default:
     warning("Unsupported command: " + String(command));
@@ -1239,21 +1074,22 @@ function fluidncOnCommand(command) {
 function fluidncOnSectionEnd() {
   flushPendingLinearMove();
   if (runtime.activePlane !== 17) {
-    writeBlock(["G17"], false);
+    fluidncWriteBlock(["G17"], false);
     runtime.activePlane = 17;
   }
   if (typeof isLastSection == "function" ? !isLastSection() : true) {
     var nextSection = typeof getNextSection == "function" ? getNextSection() : undefined;
+    // When the next section uses the same coolant, leave runtime.coolantCode intact so startCoolant() can skip a redundant M7/M8.
     if (nextSection && nextSection.getTool && currentSection && currentSection.getTool &&
       nextSection.getTool().coolant !== currentSection.getTool().coolant) {
       stopCoolant();
     }
   }
-  forceAny();
+  fluidncForceAny();
 }
 
 function fluidncOnClose() {
-  if (String(getProperty("splitFile")) == "none") {
+  if (runtime.props.splitMode == "none") {
     writeln("");
     finishMainProgram();
   } else if (runtime.redirected) {
@@ -1280,7 +1116,7 @@ function fluidncOnRapid(x, y, z) {
   if (xWord || yWord || zWord) {
     fluidncWriteBlock([gMotionModal.format(0), xWord, yWord, zWord], false);
     rememberOutputPosition(x, y, z);
-    forceFeed();
+    fluidncForceFeed();
   }
 }
 
@@ -1311,242 +1147,21 @@ function fluidncOnRadiusCompensation() {
   error("Radius compensation is not supported by this post.");
 }
 
-function formatComment(text) {
-  return fluidncFormatComment(text);
-}
-
-function writeComment(text) {
-  return fluidncWriteComment(text);
-}
-
-function writeBlock(words, isToolChangeBlock) {
-  return fluidncWriteBlock(words, isToolChangeBlock);
-}
-
-function writeProgramHeader() {
-  return fluidncWriteProgramHeader();
-}
-
-function getSetting(setting, defaultValue) {
-  return fluidncGetSetting(setting, defaultValue);
-}
-
-function writeRetract() {
-  return fluidncWriteRetract();
-}
-
-function getCoolantCodes(coolant) {
-  return fluidncGetCoolantCodes(coolant);
-}
-
-function setCoolant(coolant) {
-  return fluidncSetCoolant(coolant);
-}
-
-function startSpindle() {
-  return fluidncStartSpindle.apply(this, arguments);
-}
-
-function getFeed(feed) {
-  return fluidncGetFeed(feed);
-}
-
-function writeToolCall(tool, announceChange) {
-  return fluidncWriteToolCall(tool, announceChange);
-}
-
-function writeToolBlock() {
-  return fluidncWriteToolBlock.apply(this, arguments);
-}
-
-function _fluidncFlushPending() {
-  return fluidncFlushPendingLinearMove();
-}
-
-function writeStartBlocks(isRequired, code) {
-  return fluidncWriteStartBlocks(isRequired, code);
-}
-
-function writeWCS(section) {
-  return fluidncWriteWCS(section);
-}
-
-function writeInitialPositioning(position) {
-  return fluidncWriteInitialPositioning.apply(this, arguments);
-}
-
-function writeProgramStart() {
-  return fluidncWriteProgramStart();
-}
-
-function writeProgramEnd() {
-  return fluidncWriteProgramEnd();
-}
-
-function activateMachine() {
-  return fluidncActivateMachine();
-}
-
-function validateToolData() {
-  return fluidncValidateToolData();
-}
-
-function validateCommonParameters() {
-  return fluidncValidateCommonParameters();
-}
-
-function getBodyLength(tool) {
-  return fluidncGetBodyLength(tool);
-}
-
-function forceFeed() {
-  return fluidncForceFeed();
-}
-
-function forceXYZ() {
-  return fluidncForceXYZ();
-}
-
-function forceABC() {
-  return fluidncForceABC();
-}
-
-function forceAny() {
-  return fluidncForceAny();
-}
-
-function forceModals() {
-  return fluidncForceModals.apply(this, arguments);
-}
-
-function forceCircular(plane) {
-  return fluidncForceCircular(plane);
-}
-
-function getForwardDirection(section) {
-  return fluidncGetForwardDirection(section);
-}
-
-function getRetractParameters() {
-  return fluidncGetRetractParameters();
-}
-
-function subprogramsAreSupported() {
-  return fluidncSubprogramsAreSupported();
-}
-
-function machineSimulation() {
-  return fluidncMachineSimulation();
-}
-
-function defineMachine() {
-  return fluidncDefineMachine();
-}
-
-function defineWorkPlane(section) {
-  return fluidncDefineWorkPlane(section);
-}
-
-function isTCPSupportedByOperation() {
-  return fluidncIsTCPSupportedByOperation();
-}
-
-function getWorkPlaneMachineABC() {
-  return fluidncGetWorkPlaneMachineABC();
-}
-
-function positionABC(abc) {
-  return fluidncPositionABC(abc);
-}
-
-function forceWorkPlane() {
-  return fluidncForceWorkPlane();
-}
-
-function cancelWCSRotation() {
-  return fluidncCancelWCSRotation();
-}
-
-function cancelWorkPlane() {
-  return fluidncCancelWorkPlane();
-}
-
-function setWorkPlane() {
-  return fluidncSetWorkPlane();
-}
-
-function getOffsetCode() {
-  return fluidncGetOffsetCode();
-}
-
-function onMoveToSafeRetractPosition() {
-  return fluidncOnMoveToSafeRetractPosition();
-}
-
-function onRotateAxes(x, y, z) {
-  return fluidncOnRotateAxes(x, y, z);
-}
-
-function onReturnFromSafeRetractPosition(x, y, z) {
-  return fluidncOnReturnFromSafeRetractPosition(x, y, z);
-}
-
-function onOpen() {
-  return fluidncOnOpen();
-}
-
-function onSection() {
-  return fluidncOnSection();
-}
-
-function onDwell(seconds) {
-  return fluidncOnDwell(seconds);
-}
-
-function onSpindleSpeed(spindleSpeed) {
-  return fluidncOnSpindleSpeed(spindleSpeed);
-}
-
-function onCircular(clockwise, cx, cy, cz, x, y, z, feed) {
-  return fluidncOnCircular(clockwise, cx, cy, cz, x, y, z, feed);
-}
-
-function onCommand(command) {
-  return fluidncOnCommand(command);
-}
-
-function onSectionEnd() {
-  return fluidncOnSectionEnd();
-}
-
-function onClose() {
-  return fluidncOnClose();
-}
-
-function onComment(text) {
-  return fluidncOnComment(text);
-}
-
-function onPassThrough(text) {
-  return fluidncOnPassThrough(text);
-}
-
-function onRapid(x, y, z) {
-  return fluidncOnRapid(x, y, z);
-}
-
-function onLinear(x, y, z, feed) {
-  return fluidncOnLinear(x, y, z, feed);
-}
-
-function onRapid5D() {
-  return fluidncOnRapid5D();
-}
-
-function onLinear5D() {
-  return fluidncOnLinear5D();
-}
-
-function onRadiusCompensation() {
-  return fluidncOnRadiusCompensation();
-}
+var onMoveToSafeRetractPosition = fluidncOnMoveToSafeRetractPosition;
+var onRotateAxes = fluidncOnRotateAxes;
+var onReturnFromSafeRetractPosition = fluidncOnReturnFromSafeRetractPosition;
+var onOpen = fluidncOnOpen;
+var onSection = fluidncOnSection;
+var onDwell = fluidncOnDwell;
+var onSpindleSpeed = fluidncOnSpindleSpeed;
+var onCircular = fluidncOnCircular;
+var onCommand = fluidncOnCommand;
+var onSectionEnd = fluidncOnSectionEnd;
+var onClose = fluidncOnClose;
+var onComment = fluidncOnComment;
+var onPassThrough = fluidncOnPassThrough;
+var onRapid = fluidncOnRapid;
+var onLinear = fluidncOnLinear;
+var onRapid5D = fluidncOnRapid5D;
+var onLinear5D = fluidncOnLinear5D;
+var onRadiusCompensation = fluidncOnRadiusCompensation;

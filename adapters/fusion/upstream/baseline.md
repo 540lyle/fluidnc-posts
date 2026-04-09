@@ -5,6 +5,8 @@
 - imported adapter captured into repo history: `2026-04-07`
 - imported from: `C:\Users\540ly\AppData\Roaming\Autodesk\Fusion 360 CAM\Posts\FluidNC.cps`
 - active `adapters/fusion/FluidNC.cps` rewritten as a repository-authored implementation: `2026-04-08`
+- `adapters/fusion/upstream/` contains provenance notes and revision metadata only; it does not keep a tracked working-copy clone of the imported Autodesk-derived post
+- the only tracked files here should be note or metadata files such as `baseline.md` and `source-revision.txt`; do not check an imported upstream `.cps` into this folder
 
 ## Autodesk baseline
 
@@ -35,6 +37,7 @@
 - startup and section-start safety output respects the active unit mode instead of hardcoding `G21`
 - split-file output emits self-contained sub-files with independent startup state
 - mocked Fusion-host tests now cover the rewritten adapter at 100% statements, branches, functions, and lines
+- the shipped repo post no longer preserves the imported helper/property surface; old-post comparison is handled by local mock-harness tools instead
 
 ## Custom marker policy
 

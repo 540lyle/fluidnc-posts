@@ -168,6 +168,8 @@ This harness:
 - fails the build unless statements, branches, functions, and lines all remain at `100%`
 - runs same-input differential scenarios against the local original `FluidNC.cps` when that file is available and fails on emitted NC or split-file tree drift
 
+The repo post's helper surface is intentionally repo-owned. If you need to exercise the original Autodesk-derived post in the same mock harness, point the harness at that file through `loadPost({ cpsPath })` or the local-original validation tools rather than reintroducing legacy pass-through names into `FluidNC.cps`.
+
 Use `npm run test:unit:plain` if you only want the Node test runner output without the explicit coverage summary.
 
 ## Original fixture audit

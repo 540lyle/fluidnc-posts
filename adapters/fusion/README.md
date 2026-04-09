@@ -13,7 +13,7 @@ This folder is the Fusion-specific implementation layer.
 
 - `FluidNC.cps` is now a repository-authored 3-axis Fusion post implementation
 - the rewrite keeps current fixture-visible behavior while avoiding Autodesk-shaped helper structure
-- the original callback and property surface has been restored so legacy Fusion entry points still exist
+- the active post now exposes repo-owned helper names instead of preserving the imported helper/property surface
 - mocked Fusion-host unit tests cover the adapter at 100% statements, branches, functions, and lines
 - when the local original post exists, the mocked host also runs original-vs-rewrite differential scenarios and fails on emitted NC drift
 - upstream notes live in `upstream/`
@@ -45,4 +45,4 @@ If you change adapter behavior, say whether the change is:
 - section starts always restate restart-sensitive modal state
 - split-file output emits a placeholder master plus self-contained sub-files
 - segment filtering flushes deferred endpoints before rapids, arcs, section ends, and close
-- legacy helper names from the imported adapter are preserved through compatibility wrappers while internals stay repo-owned
+- the repo post does not preserve the imported helper/property contract; old-post compatibility belongs in the test harness, not in the shipped adapter

@@ -2,6 +2,8 @@
 
 This repository ships a Fusion post processor tuned for FluidNC-based CNC machines.
 
+The shipped adapter is a repository-authored rewrite with a repo-owned helper contract. It does not preserve the imported Autodesk helper/property surface in the active `FluidNC.cps`; old-post comparison and compatibility work live in the local mock-harness tooling instead. Upstream provenance in `adapters/fusion/upstream/` is metadata-only and does not include a tracked upstream `.cps` working copy.
+
 If you only want the post, start with:
 
 - [FluidNC.cps](adapters/fusion/FluidNC.cps)
@@ -152,3 +154,7 @@ If you are contributing or modifying the post itself, start here:
 - [Install In Fusion](docs/install-fusion.md)
 - [Testing](docs/testing.md)
 - [Fusion Adapter Notes](adapters/fusion/README.md)
+
+For provenance and upstream baseline notes without a tracked copy of the imported post source, see:
+
+- [Fusion Upstream Baseline](adapters/fusion/upstream/baseline.md)

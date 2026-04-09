@@ -326,20 +326,26 @@ export const unitScenarios = [
           {
             parameters: { "operation-comment": "01 (rough) pocket" },
             initialPosition: { x: 0, y: 0, z: 12.5 },
+            workOffset: 99,
             tool: { number: 7, spindleRPM: 9000, coolant: 2, description: "mist tool" }
           }
         ]
       });
 
       assert.equal(post.host.cleanFileToken(" 01 (rough) pocket "), "01_rough_pocket");
-      assert.equal(post.host.formatComment(" Alpha (Beta) "), "Alpha Beta");
+      assert.equal(post.host.fluidncFormatComment(" Alpha (Beta) "), "Alpha Beta");
 
       post.host.onOpen();
       post.host.onComment("Ready (operator)");
       post.host.onPassThrough("M123");
       post.host.onSection();
+      const beforeSpindleUpdate = post.getMainText();
       post.host.onSpindleSpeed(9100);
-      post.host.onCommand(post.host.COMMAND_START_SPINDLE);
+      const afterSpindleUpdate = post.getMainText();
+      assert.notEqual(afterSpindleUpdate, beforeSpindleUpdate);
+      assert.equal(countMatches(afterSpindleUpdate, /^S9100$/gm), 1);
+      post.host.onSpindleSpeed(9100);
+      assert.equal(post.getMainText(), afterSpindleUpdate);
       post.host.onCommand(post.host.COMMAND_COOLANT_OFF);
       post.host.onCommand(post.host.COMMAND_OPTIONAL_STOP);
       post.host.onCommand(post.host.COMMAND_STOP);
@@ -355,11 +361,13 @@ export const unitScenarios = [
       assert.match(text, /N10 T7/);
       assert.match(text, /N11 M6/);
       assert.match(text, /G0 Z12\.5/);
-      assert.match(text, /S9100 M3/);
+      assert.match(text, /^S9100$/m);
       assert.match(text, /M7/);
       assert.match(text, /M9/);
       assert.match(text, /M0/);
       assert.match(text, /M30/);
+      assert.match(text, /G54/);
+      assert.equal(post.warnings[0], "Unsupported work offset 99; using G54.");
     }
   },
   {
@@ -399,9 +407,16 @@ export const unitScenarios = [
           sequenceNumberIncrement: 0,
           safePositionMethod: "clearanceHeight",
           useCoolant: false,
-          minimumSegmentLength: 0
+          minimumSegmentLength: 0.5,
+          safeStartAllOperations: true,
+          separateWordsWithSpace: false
         },
-        sections: []
+        sections: [
+          {
+            initialPosition: { x: 7, y: 8, z: 9 },
+            tool: { number: 1, spindleRPM: 0, coolant: 9 }
+          }
+        ]
       });
 
       assert.equal(post.host.cleanText(undefined), "");
@@ -409,12 +424,15 @@ export const unitScenarios = [
       assert.equal(post.host.cleanProgramToken("!!!"), "program");
       assert.equal(post.host.axisWord("X", undefined), "");
       assert.equal(post.host.feedWord(undefined), "");
+      assert.equal(post.host.feedWord(123), "F123");
+      assert.equal(post.host.feedWord(null), "");
       assert.equal(post.host.spindleWord(undefined), "");
+      assert.equal(post.host.spindleWord(null), "");
       assert.equal(post.host.getProgramLabel(), "program");
       assert.equal(post.host.getSectionLabel(undefined, 1), "section_2");
       assert.equal(post.host.getWorkOffsetCode({ workOffset: 99 }), "G54");
+      assert.equal(post.host.getWorkOffsetCode(), "G54");
       assert.equal(post.host.coolantCodeForSection(), "");
-      assert.equal(post.host.shouldFilterLinearMove(1, 1, 1), false);
 
       post.host.runtime.currentPosition = { x: 4, y: 5, z: 6 };
       assert.equal(post.host.getClearanceHeight(undefined), 6);
@@ -423,15 +441,31 @@ export const unitScenarios = [
       post.host.runtime.lastOutputPosition = undefined;
       assert.equal(post.host.shouldFilterLinearMove(1, 1, 1), false);
 
-      post.host.writeComment("");
-      post.host.writeBlock(["G0", ["X1"], "Y2"], false);
-      post.host.writeBlock(["G0", "Z3"], false);
+      post.host.fluidncWriteComment("");
+      post.host.fluidncWriteBlock(["", null], false);
       post.host.onDwell(1.25);
       post.host.onSpindleSpeed(1234);
       post.host.onDwell(0);
       post.host.onPassThrough("");
       post.host.closeSplitOutput();
       post.host.onOpen();
+      post.host.onSection();
+      assert.match(post.getMainText(), /G90G0X7Y8/);
+      assert.match(post.getMainText(), /G0Z9/);
+      post.host.setProperty("minimumSegmentLength", 0);
+      post.setCurrentPosition({ x: 0, y: 0, z: 0 });
+      post.host.runtime.lastOutputPosition = { x: 0, y: 0, z: 0 };
+      post.host.onLinear(0.1, 0, 0, 100);
+      assert.ok(!post.getMainText().includes("X0.1"));
+      post.host.onRapid(1, 0, 0);
+
+      const noFilterPost = await loadPost({
+        properties: {
+          minimumSegmentLength: 0
+        },
+        sections: []
+      });
+      assert.equal(noFilterPost.host.shouldFilterLinearMove(1, 1, 1), false);
 
       const quietPost = await loadPost({
         properties: {
@@ -439,17 +473,17 @@ export const unitScenarios = [
         },
         sections: []
       });
-      quietPost.host.writeBlock(["", null], false);
+      quietPost.host.fluidncWriteBlock(["", null], false);
       assert.equal(quietPost.getMainText(), "");
 
-      const nestedPost = await loadPost({
+      const undefinedRetractPost = await loadPost({
         properties: {
-          showSequenceNumbers: "false"
-        }
+          safePositionMethod: "clearanceHeight"
+        },
+        sections: []
       });
-      const nestedWords = new nestedPost.host.Array("G0", new nestedPost.host.Array("X1"), "Y2");
-      nestedPost.host.writeBlock(nestedWords, false);
-      assert.match(nestedPost.getMainText(), /G0 X1 Y2/);
+      undefinedRetractPost.host.writeSafeRetract({ getInitialPosition() { return {}; } });
+      assert.equal(undefinedRetractPost.getMainText(), "");
 
       const anchorlessPost = await loadPost({
         properties: {
@@ -502,9 +536,9 @@ export const unitScenarios = [
 
       const text = post.getMainText();
 
-      assert.match(text, /N10 G0 X1 Y2/);
-      assert.match(text, /N11 G0 Z3/);
-      assert.match(text, /N12 G4 P1\.25/);
+      assert.match(text, /G1X0\.1Y0Z0F100/);
+      assert.match(text, /G0X1/);
+      assert.match(text, /G4P1\.25/);
       assert.match(text, /\(FluidNC config:/);
       assert.ok(!text.includes("M8"));
     }
@@ -570,15 +604,14 @@ export const unitScenarios = [
           }
         };
       };
-
       helperPost.host.writeToolComments();
-      helperPost.host.writeToolCall({ number: 9, description: "named tool" }, false);
+      helperPost.host.fluidncWriteToolCall({ number: 9, description: "named tool" }, false);
       helperPost.host.startCoolant(helperPost.host.currentSection);
       helperPost.host.startCoolant(helperPost.host.currentSection);
       helperPost.host.onCommand(helperPost.host.COMMAND_STOP_SPINDLE);
-      helperPost.host.startSpindle(helperPost.host.currentSection);
+      helperPost.host.fluidncStartSpindle(helperPost.host.currentSection);
       const beforeRepeatedSpindleStart = helperPost.getMainText();
-      assert.equal(helperPost.host.startSpindle(helperPost.host.currentSection), false);
+      assert.equal(helperPost.host.fluidncStartSpindle(helperPost.host.currentSection), false);
       assert.equal(helperPost.getMainText(), beforeRepeatedSpindleStart);
       helperPost.host.setCurrentPosition(undefined, 2, undefined);
       helperPost.setCurrentPosition({ x: 0, y: 0, z: 0 });
@@ -613,25 +646,39 @@ export const unitScenarios = [
       });
       reverseDirectionPost.host.runtime.spindleDirection = "M3";
       reverseDirectionPost.host.runtime.activeSpindleSpeed = 5000;
-      reverseDirectionPost.host.startSpindle(reverseDirectionPost.host.currentSection);
+      reverseDirectionPost.host.onCommand(reverseDirectionPost.host.COMMAND_START_SPINDLE);
       assert.match(reverseDirectionPost.getMainText(), /S5000 M4/);
+
+      const pendingSpindlePost = await loadPost({
+        properties: {
+          spindleWarmupDelay: 0
+        }
+      });
+      pendingSpindlePost.host.onSpindleSpeed(4321);
+      assert.equal(pendingSpindlePost.host.shouldStartSpindle(pendingSpindlePost.host.currentSection, false), true);
+      pendingSpindlePost.host.onCommand(pendingSpindlePost.host.COMMAND_START_SPINDLE);
+      assert.match(pendingSpindlePost.getMainText(), /S4321 M3/);
 
       const silentToolPost = await loadPost({
         properties: {
           useToolCall: false
         }
       });
-      silentToolPost.host.writeToolCall({ number: 5 }, false);
-      assert.equal(silentToolPost.getMainText(), "");
+      silentToolPost.host.onOpen();
+      silentToolPost.host.onSection();
+      assert.doesNotMatch(silentToolPost.getMainText(), /^T1$/m);
 
       const splitPost = await loadPost({
-        programName: "split-by-tool-safe-start",
+        programName: "split-clearance",
         properties: {
-          splitFile: "tool"
+          splitFile: "tool",
+          safePositionMethod: "clearanceHeight",
+          useCoolant: false
         },
         sections: [
           {
             parameters: { "operation-comment": "01_restart" },
+            initialPosition: { x: 0, y: 0, z: 10 },
             tool: { number: 1, spindleRPM: 5000, coolant: 4 }
           }
         ]
@@ -639,11 +686,13 @@ export const unitScenarios = [
 
       splitPost.host.onOpen();
       splitPost.host.onSection();
+      splitPost.setCurrentPosition({ x: 0, y: 0, z: 20 });
       splitPost.host.onClose();
 
       const splitFiles = splitPost.getFileNames();
-      assert.deepEqual(splitFiles, ["split-by-tool-safe-start_1_T1.nc"]);
+      assert.deepEqual(splitFiles, ["split-clearance_1_T1.nc"]);
       assert.match(splitPost.getFileText(splitFiles[0]), /M30/);
+      assert.match(splitPost.getFileText(splitFiles[0]), /^G0 Z20$/m);
 
       const fallbackToolTypePost = await loadPost({
         sections: [
@@ -706,7 +755,7 @@ export const unitScenarios = [
     }
   },
   {
-    name: "covers legacy compatibility wrappers and legacy property surface",
+    name: "rejects removed legacy and test-only repo helper contracts",
     async run(assert, loadPost) {
       const post = await loadPost({
         properties: {
@@ -714,114 +763,135 @@ export const unitScenarios = [
           spindleWarmupDelay: 0
         }
       });
+      const removedLegacyNames = [
+        "formatComment",
+        "writeComment",
+        "writeBlock",
+        "writeProgramHeader",
+        "getSetting",
+        "writeRetract",
+        "getCoolantCodes",
+        "setCoolant",
+        "startSpindle",
+        "getFeed",
+        "writeToolCall",
+        "writeToolBlock",
+        "_fluidncFlushPending",
+        "writeStartBlocks",
+        "writeWCS",
+        "writeInitialPositioning",
+        "writeProgramStart",
+        "writeProgramEnd",
+        "activateMachine",
+        "validateToolData",
+        "validateCommonParameters",
+        "getBodyLength",
+        "forceFeed",
+        "forceXYZ",
+        "forceABC",
+        "forceAny",
+        "forceModals",
+        "forceCircular",
+        "getForwardDirection",
+        "getRetractParameters",
+        "subprogramsAreSupported",
+        "machineSimulation",
+        "defineMachine",
+        "defineWorkPlane",
+        "isTCPSupportedByOperation",
+        "getWorkPlaneMachineABC",
+        "positionABC",
+        "forceWorkPlane",
+        "cancelWCSRotation",
+        "cancelWorkPlane",
+        "setWorkPlane",
+        "getOffsetCode"
+      ];
+      const removedRepoHelperNames = [
+        "fluidncGetSetting",
+        "writeModalReset",
+        "fluidncWriteRetract",
+        "fluidncFlushPendingLinearMove",
+        "fluidncGetCoolantCodes",
+        "fluidncSetCoolant",
+        "fluidncGetFeed",
+        "fluidncWriteToolBlock",
+        "fluidncWriteStartBlocks",
+        "fluidncWriteWCS",
+        "fluidncWriteProgramEnd",
+        "fluidncActivateMachine",
+        "fluidncValidateToolData",
+        "fluidncValidateCommonParameters",
+        "fluidncGetBodyLength",
+        "fluidncForceABC",
+        "fluidncGetForwardDirection",
+        "fluidncGetRetractParameters",
+        "fluidncSubprogramsAreSupported",
+        "fluidncMachineSimulation",
+        "fluidncDefineMachine",
+        "fluidncDefineWorkPlane",
+        "fluidncIsTCPSupportedByOperation",
+        "fluidncGetWorkPlaneMachineABC",
+        "fluidncPositionABC",
+        "fluidncForceWorkPlane",
+        "fluidncCancelWCSRotation",
+        "fluidncCancelWorkPlane",
+        "fluidncSetWorkPlane",
+        "fluidncGetOffsetCode"
+      ];
 
-      assert.equal(post.host.properties.useG95.value, false);
-      assert.equal(post.host.properties.useDPMFeeds.value, false);
-      assert.equal(post.host.properties.useTiltedWorkplane.value, false);
-      assert.equal(post.host.getSetting("comments.prefix", ""), "(");
-      assert.equal(post.host.getSetting("comments.showSequenceNumbers", true), false);
-      assert.equal(post.host.getSetting(undefined, "fallback"), "fallback");
-      assert.equal(post.host.getSetting("missing.path", "fallback"), "fallback");
-      assert.equal(post.host.getBodyLength({ bodyLength: 7 }), 7);
-      assert.equal(post.host.getBodyLength({ fluteLength: 3 }), 3);
-      assert.equal(post.host.getBodyLength({}), 0);
-      assert.equal(post.host.getFeed(123), "F123");
-      assert.equal(post.host.activateMachine(), post.host.machineConfiguration);
-      assert.equal(post.host.defineMachine(), post.host.machineConfiguration);
-      assert.equal(post.host.validateToolData(), true);
-      assert.equal(post.host.validateCommonParameters(), true);
-      assert.equal(post.host.forceFeed(), true);
-      assert.equal(post.host.forceXYZ(), true);
-      assert.equal(post.host.forceABC(), true);
-      assert.equal(post.host.forceAny(), true);
-      assert.equal(post.host.forceModals(), true);
-      assert.equal(post.host.forceCircular(19), 19);
-      assert.equal(post.host.subprogramsAreSupported(), true);
-      assert.equal(post.host.machineSimulation(), false);
-      assert.equal(post.host.isTCPSupportedByOperation(), false);
-      assert.equal(post.host.forceWorkPlane(), true);
-      assert.equal(post.host.cancelWCSRotation(), false);
-      assert.equal(post.host.cancelWorkPlane(), false);
-      assert.equal(post.host.setWorkPlane(), false);
-      assert.equal(post.host.getOffsetCode(), "");
+      assert.equal(post.host.properties.useG95, undefined);
+      assert.equal(post.host.properties.useDPMFeeds, undefined);
+      assert.equal(post.host.properties.useTiltedWorkplane, undefined);
+      for (const name of removedLegacyNames) {
+        assert.equal(typeof post.host[name], "undefined");
+      }
+      for (const name of removedRepoHelperNames) {
+        assert.equal(typeof post.host[name], "undefined");
+      }
 
-      const directForward = post.host.getForwardDirection({ workPlane: { forward: { x: 9, y: 8, z: 7 } } });
-      assert.equal(directForward.x, 9);
-      const forward = post.host.getForwardDirection(post.host.currentSection);
-      assert.equal(forward.x, 0);
-      const definedPlane = post.host.defineWorkPlane({ workPlane: { forward: { x: 1, y: 2, z: 3 } } });
-      assert.equal(definedPlane.z, 3);
-      const fallbackForward = post.host.getForwardDirection();
-      assert.equal(fallbackForward.z, 1);
-      const partialForward = post.host.getForwardDirection({ workPlane: {} });
-      assert.equal(partialForward.z, 1);
-      const fallbackPlane = post.host.defineWorkPlane();
-      assert.equal(fallbackPlane.z, 1);
-      const machineABC = post.host.getWorkPlaneMachineABC();
-      assert.equal(machineABC.x, 0);
-      assert.equal(machineABC.isNonZero(), false);
-      const positioned = post.host.positionABC(machineABC);
-      assert.equal(positioned.x, 0);
-
-      const retractParameters = post.host.getRetractParameters();
-      assert.equal(retractParameters.method, "clearanceHeight");
-      assert.equal(retractParameters.words[0], "Z0");
-
-      assert.equal(post.host.getCoolantCodes(post.host.COOLANT_OFF)[0], "M9");
-      assert.equal(post.host.getCoolantCodes(post.host.COOLANT_MIST)[0], "M7");
-      assert.equal(post.host.getCoolantCodes(post.host.COOLANT_FLOOD).length, 0);
-
-      post.host.writeToolBlock("T99");
-      post.host.writeProgramHeader();
-      post.host.writeModalReset();
-      post.host.writeStartBlocks(true, function () {
-        post.host.writeBlock(["M7"], false);
-      });
-      post.host.writeStartBlocks(true, null);
-      delete post.host.getCurrentSectionId;
-      post.host.runtime.currentSectionId = 3;
-      post.host.writeStartBlocks(true, null);
-      post.host.writeWCS(post.host.currentSection);
-      post.host.writeWCS();
-      post.host.writeInitialPositioning({ x: 1, y: 2, z: 3 });
-      post.host.writeInitialPositioning({ x: 4, y: 5, z: 6 }, false);
-      post.host.writeInitialPositioning({ x: 11, y: 12 }, false);
-      post.host.writeInitialPositioning();
-      post.host.setCoolant(post.host.COOLANT_AIR);
-      post.host.setCoolant(post.host.COOLANT_OFF);
+      assert.equal(typeof post.host.onOpen, "function");
+      assert.equal(typeof post.host.onSection, "function");
+      assert.equal(typeof post.host.onLinear, "function");
+      assert.equal(post.host.fluidncForceFeed(), true);
+      assert.equal(post.host.fluidncForceXYZ(), true);
+      assert.equal(post.host.fluidncForceAny(), true);
+      assert.equal(post.host.fluidncForceModals(), true);
+      post.host.fluidncForceModals(null);
+      assert.equal(post.host.fluidncForceCircular(19), 19);
       post.host.runtime.pendingLinearMove = { x: 4, y: 5, z: 6, feed: 10 };
-      post.host._fluidncFlushPending();
-      post.host.forceModals(null);
+      post.host.flushPendingLinearMove();
+      post.host.fluidncWriteInitialPositioning({ x: 1, y: 2, z: 3 });
+      post.host.fluidncWriteInitialPositioning({ x: 4, y: 5, z: 6 }, false);
+      post.host.fluidncWriteInitialPositioning({ x: 11, y: 12 }, false);
+      post.host.fluidncWriteInitialPositioning();
+      post.host.fluidncWriteProgramHeader();
+      post.host.fluidncWriteProgramStart();
       const customModal = { resetCount: 0, reset() { this.resetCount += 1; } };
-      post.host.forceModals(customModal);
+      post.host.fluidncForceModals(customModal);
       assert.equal(customModal.resetCount, 1);
-      post.host.writeInitialPositioning({ x: 9, y: 8 });
+      post.host.fluidncWriteInitialPositioning({ x: 9, y: 8 });
       post.host.emitLinearMove(9, 8, 3, 12);
       post.host.emitLinearMove(9, 8, 3, 13);
       post.host.emitLinearMove(9, 8, 3);
-      post.host.writeProgramStart();
-      post.host.writeRetract();
       post.host.onMoveToSafeRetractPosition();
       post.host.onRotateAxes(7, 8, 9);
       post.host.onReturnFromSafeRetractPosition(10, 11, 12);
       const beforeRepeatRapid = post.getMainText();
       post.host.onRapid(10, 11, 12);
       assert.equal(post.getMainText(), beforeRepeatRapid);
-      post.host.writeProgramEnd();
+      post.host.finishMainProgram();
 
       const text = post.getMainText();
-      assert.match(text, /T99/);
-      assert.match(text, /M7/);
-      assert.match(text, /G54/);
       assert.match(text, /G90 G17 G0 X1 Y2/);
       assert.match(text, /G90 G0 X4 Y5/);
       assert.match(text, /G90 G0 X11 Y12/);
       assert.match(text, /^Z6$/m);
       assert.match(text, /^Z3$/m);
-      assert.match(text, /M8/);
-      assert.match(text, /M9/);
-      assert.match(text, /G1 X4 Y5 F10/);
-      assert.match(text, /G90 G94 G21 G17/);
+      assert.match(text, /G1 X4 Y5 Z6 F10/);
+      assert.match(text, /G90 G94/);
+      assert.match(text, /^G17$/m);
+      assert.match(text, /^G21$/m);
       assert.match(text, /G0 Z15/);
       assert.match(text, /G0 X7 Z9/);
       assert.match(text, /X10 Y11 Z12/);
@@ -832,12 +902,18 @@ export const unitScenarios = [
       });
       noForceControlPost.host.onOpen();
 
+      const openFallbackPost = await loadPost({
+        sections: []
+      });
+      delete openFallbackPost.host.getNumberOfSections;
+      openFallbackPost.host.onOpen();
+
       const safeStartFallbackPost = await loadPost({
         properties: {
           safeStartAllOperations: true
         }
       });
-      safeStartFallbackPost.host.writeInitialPositioning({ x: 7, y: 8, z: 9 }, false);
+      safeStartFallbackPost.host.fluidncWriteInitialPositioning({ x: 7, y: 8, z: 9 }, false);
       assert.match(safeStartFallbackPost.getMainText(), /G90 G17 G0 X7 Y8/);
 
       const noInitialPositionPost = await loadPost();

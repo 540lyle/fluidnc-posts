@@ -35,8 +35,9 @@ Repo automation:
 - `npm run validate:adapter` runs the syntax check, adapter lint, and mocked-host unit harness
 - `npm run validate:fixtures` runs the captured-fixture validator
 - `npm run validate` runs both and is the shared entry point for Git hooks and GitHub Actions
-- `npm run compare:original:surface` compares the rewritten adapter's function and property surface to the local original Fusion post when that file exists
 - `npm run hooks:install` configures the repo-local `pre-commit` and `pre-push` hooks
+
+The mocked runtime can still load the locally installed original post through `loadPost({ cpsPath })` for future focused regression work. That compatibility belongs in test code and validation tools, not in the shipped adapter surface.
 
 CI boundary:
 

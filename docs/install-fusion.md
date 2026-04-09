@@ -58,7 +58,7 @@ If you want the repo copy to drive the existing local post path directly, use:
 Recommended local workflow:
 
 1. Prefer Fusion Linked Folder for normal development.
-2. Use the install script when you want the repo adapter mirrored into the legacy local post path.
+2. Use the install script when you want the repo adapter mirrored into the default local Fusion post path.
 3. Use hard-link mode on the same drive when you want the repo file and local post path to stay in sync.
 
 Examples:
@@ -75,7 +75,7 @@ If you install to the local path, the default destination is:
 
 `C:\Users\<you>\AppData\Roaming\Autodesk\Fusion 360 CAM\Posts\FluidNC.cps`
 
-That path is useful for comparing the repo rewrite against the original local post during regression work, but it is a separate workflow from the linked-folder setup above.
+That path is useful for comparing the repo rewrite against an installed original post during regression work, but it is a separate workflow from the linked-folder setup above.
 
 ## Release flow
 

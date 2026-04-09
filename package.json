@@ -7,7 +7,6 @@
   },
   "scripts": {
     "audit:fixtures:original": "node .\\tools\\validate\\run-original-fixture-audit.mjs",
-    "compare:original:surface": "node .\\tools\\validate\\compare-original-surface.mjs",
     "test:unit": "npm run test:unit:coverage && npm run test:unit:diff",
     "test:unit:coverage": "node .\\tools\\validate\\run-unit-tests.mjs",
     "test:unit:diff": "node .\\tools\\validate\\run-differential-tests.mjs",
