@@ -1,9 +1,18 @@
 # Testing Summary
 
 - Favor fixture-driven regression over abstract unit tests alone.
+- The active adapter also has a mocked Fusion-host unit harness and must stay at 100% statements, branches, functions, and lines.
 - Protect inch-mode handling, split files, restart safety, tool changes, and arc behavior first.
 - Exact snapshots are useful, but invariant checks are the long-term goal.
 - Every behavior fix should either add a fixture or tighten an invariant.
 - Current captured baseline covers `inch-job`, `multi-tool`, `tiny-segment-storm`, and `split-file`.
-- Preferred workflow is: prepare fixture folder, generate `.f3d` when possible, use Fusion AI for setup/ops, post into the repo, run `tools/validate/Test-FixtureCaptures.ps1`, then review only failed checks or new behavior.
+- Preferred workflow is: run `npm run test:unit`, prepare fixture folder, generate `.f3d` when possible, use Fusion AI for setup/ops, post into the repo, run `tools/validate/Test-FixtureCaptures.ps1`, then review only failed checks or new behavior.
+- In agent-guided manual regression, the user should only do the Fusion UI steps; once the emitted file paths are available locally, the agent should own diffs, invariant checks, validator runs, and sidecar inspection.
+- When guiding manual Fusion testing, include the concrete linked-folder or local-post setup from `docs/install-fusion.md`; do not just say "use a linked folder" without the actual steps.
+- `npm run test:unit` now includes a differential mocked-host comparison against the local original Fusion post when that original file exists, so same-input NC drift is caught before manual posting when the mock host covers the path.
+- `npm run audit:fixtures:original` compares the local original Fusion post under the mocked host against the checked-in fixture captures and is the fastest way to see whether a failure is still a host-fidelity gap or just a shallow scenario trace.
+- The shipped repo post no longer preserves the imported helper/property surface. If old-post helper access is needed in tests, add that adaptation in the test harness instead of restoring pass-through wrappers in `FluidNC.cps`.
 - Repo automation entry point is `npm run validate`; `npm run hooks:install` enables matching `pre-commit` and `pre-push` checks locally.
+- Treat CI as a repo-owned blocker only: do not redesign it to depend on a moving Autodesk install or a live Fusion session. Keep exact original-vs-rewrite installed-post comparisons local unless the original artifact is explicitly pinned in-repo or provisioned into CI.
+- Before declaring real-machine readiness, remind the user to verify the FluidNC controller values `junction_deviation_mm = 0.01` and `arc_tolerance_mm = 0.002`, because fixture parity only proves the post echoed them.
+- If a manual regression run ends with an accepted metadata-only diff, record that acceptance in the fixture `*.review.md`.

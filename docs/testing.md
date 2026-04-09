@@ -22,8 +22,9 @@ The primary failure mode for post processors is not syntax. It is behavioral dri
 ## Assertion layers
 
 1. Snapshot checks for emitted NC where stable.
-2. Invariant checks for unit mode, safety lines, tool-change state, and endpoint reachability.
-3. Human review for controller-specific tradeoffs and readability.
+2. Mocked Fusion-host unit tests for adapter callbacks and helper branches.
+3. Invariant checks for unit mode, safety lines, tool-change state, and endpoint reachability.
+4. Human review for controller-specific tradeoffs and readability.
 
 ## Initial fixture priority
 
@@ -96,6 +97,17 @@ Reasoning:
 - the highest-risk failures are already represented in captured artifacts
 - a small invariant validator catches drift faster than re-reading NC by hand every time
 
+## Agent-assisted regression split
+
+When working with a coding agent, split the work at the Fusion boundary.
+
+- Start by following [Install In Fusion](./install-fusion.md) and verify whether you are using a Fusion Linked Folder or a local installed post path.
+- The user does the Fusion-only steps: open the fixture `.f3d`, select the post, set the run properties, and click `Post`.
+- The agent does the local file work after each post: diff emitted NC against the captured baseline or original-post output, run `Test-FixtureCaptures.ps1`, inspect required checkpoints in the emitted text, and summarize only the remaining human-only concerns.
+- Do not ask the user to manually diff files, count lines, grep for invariants, or read review sidecars when the agent can access the emitted files locally.
+- When the agent asks for manual posting, it should include the concrete linked-folder or local-post setup steps instead of referring to them generically.
+- If the capture should not overwrite the baseline yet, post into a scratch folder first and let the agent compare from there.
+
 ## Proven authoring workflow
 
 The fastest workflow validated in this repo is:
@@ -105,7 +117,8 @@ The fastest workflow validated in this repo is:
 3. Let Fusion AI create the setup and operations from explicit instructions.
 4. Post each defined run directly into the fixture folder.
 5. Run `Test-FixtureCaptures.ps1`.
-6. Do manual NC review only for new behavior or failed checks.
+6. Let the agent review emitted NC and diffs when file paths are available locally.
+7. Do human review only for controller-specific judgment, machine safety context, or Fusion actions the agent cannot perform.
 
 ```mermaid
 flowchart TD
@@ -133,9 +146,55 @@ The repo supports one shared validation entry point for local work and CI:
 
 - run `npm install` once per checkout
 - run `npm run hooks:install` once per checkout to enable Git hooks
-- `pre-commit` runs adapter syntax and lint validation
+- `pre-commit` runs adapter syntax, lint, and 100% coverage-gated unit validation
 - `pre-push` runs adapter validation plus `Test-FixtureCaptures.ps1`
 - GitHub PR validation runs the same `npm run validate` command on `windows-latest`
+
+CI is intentionally narrower than the full local/manual regression envelope:
+
+- CI blocks on syntax, lint, fixture validators, and the mocked-host unit/differential harnesses that can run from repo-owned inputs alone.
+- CI should not depend on a moving Autodesk-installed original post or a live Fusion session.
+- Exact original-vs-rewrite differentials against the locally installed Autodesk post remain a local guardrail.
+- Real Fusion posting against the captured fixture families remains the release-grade regression check.
+
+## Mocked adapter coverage
+
+`npm run test:unit` executes the Fusion adapter in a mocked host rather than inside Fusion itself.
+
+This harness:
+
+- loads `adapters/fusion/FluidNC.cps` in a VM-backed mock Fusion runtime
+- exercises every function, branch, and line in the current adapter
+- fails the build unless statements, branches, functions, and lines all remain at `100%`
+- runs same-input differential scenarios against the local original `FluidNC.cps` when that file is available and fails on emitted NC or split-file tree drift
+
+The repo post's helper surface is intentionally repo-owned. If you need to exercise the original Autodesk-derived post in the same mock harness, point the harness at that file through `loadPost({ cpsPath })` or the local-original validation tools rather than reintroducing legacy pass-through names into `FluidNC.cps`.
+
+Use `npm run test:unit:plain` if you only want the Node test runner output without the explicit coverage summary.
+
+## Original fixture audit
+
+`npm run audit:fixtures:original` runs the local original Fusion post against the mocked host and compares the emitted text to the checked-in fixture captures.
+
+Use this command to audit mock fidelity, not to replace real Fusion fixture posting.
+
+The audit reports each mismatch as one of:
+
+- exact match
+- scenario depth gap: the current mock scenario stops before the full captured toolpath is replayed
+- scenario metadata gap: the scenario properties or tool metadata do not yet match the captured run closely enough
+- possible host gap: a mismatch that is not already explained by the current scenario limitations
+
+This command is local-only because it depends on a pinned original `FluidNC.cps` installed on the machine.
+
+## Controller preflight
+
+Before real cutting, verify the controller-side settings that the post only echoes in comments:
+
+- `junction_deviation_mm = 0.01`
+- `arc_tolerance_mm = 0.002`
+
+Exact NC diffs prove the post is emitting the expected header values. They do not prove the target FluidNC controller is configured the same way.
 
 ## Practical posting rules
 
@@ -143,3 +202,4 @@ The repo supports one shared validation entry point for local work and CI:
 - Keep output paths inside the matching fixture folder so artifacts stay comparable.
 - Treat `*.properties.txt` and `*.review.md` as required outputs, not optional notes.
 - Ignore or delete stale `*.failed` artifacts from misnamed posts before validating if they become confusing.
+- When using an agent, hand it the emitted file path or folder path immediately after posting so it can run the local comparison work.

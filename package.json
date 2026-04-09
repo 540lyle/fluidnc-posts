@@ -6,14 +6,22 @@
     "node": ">=20"
   },
   "scripts": {
+    "audit:fixtures:original": "node .\\tools\\validate\\run-original-fixture-audit.mjs",
+    "test:unit": "npm run test:unit:coverage && npm run test:unit:diff",
+    "test:unit:coverage": "node .\\tools\\validate\\run-unit-tests.mjs",
+    "test:unit:diff": "node .\\tools\\validate\\run-differential-tests.mjs",
+    "test:unit:plain": "node --test .\\tests\\adapters\\fusion-post.test.mjs",
+    "test": "npm run test:unit",
     "hooks:install": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tools\\validate\\Install-GitHooks.ps1",
     "validate:adapter:syntax": "node .\\tools\\validate\\check-cps-syntax.mjs",
     "validate:adapter:lint": "eslint adapters/fusion/FluidNC.cps",
-    "validate:adapter": "npm run validate:adapter:syntax && npm run validate:adapter:lint",
+    "validate:adapter": "npm run validate:adapter:syntax && npm run validate:adapter:lint && npm run test:unit",
     "validate:fixtures": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\tools\\validate\\Test-FixtureCaptures.ps1",
     "validate": "npm run validate:adapter && npm run validate:fixtures"
   },
   "devDependencies": {
-    "eslint": "^9.24.0"
+    "eslint": "^9.24.0",
+    "istanbul-lib-coverage": "^3.2.2",
+    "istanbul-lib-instrument": "^6.0.3"
   }
 }
