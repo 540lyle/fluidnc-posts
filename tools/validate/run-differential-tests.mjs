@@ -3,9 +3,9 @@ import path from "node:path";
 import process from "node:process";
 
 import { differentialScenarios } from "../../tests/adapters/fusion-differential-scenarios.mjs";
-import { IN, loadPost, repoCpsPath } from "../../tests/support/fusion-host.mjs";
+import { defaultOriginalPostPath, IN, loadPost, repoCpsPath } from "../../tests/support/fusion-host.mjs";
 
-const originalPath = process.env.FLUIDNC_ORIGINAL_POST ?? "C:\\Users\\540ly\\AppData\\Roaming\\Autodesk\\Fusion 360 CAM\\Posts\\FluidNC.cps";
+const originalPath = process.env.FLUIDNC_ORIGINAL_POST ?? defaultOriginalPostPath;
 
 function snapshotPost(post) {
   const fileNames = post.getFileNames();
@@ -118,7 +118,7 @@ function compareSnapshots(scenarioName, expectedPosts, actualPosts) {
 }
 
 if (!fs.existsSync(originalPath)) {
-  console.log(`Skipping differential output test because the original post was not found at ${originalPath}.`);
+  console.log(`Skipping differential output test because the original post was not found at ${originalPath}. Set FLUIDNC_ORIGINAL_POST to override the default location.`);
   process.exit(0);
 }
 

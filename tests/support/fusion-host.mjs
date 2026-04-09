@@ -1,10 +1,12 @@
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const defaultCpsPath = path.join(repoRoot, "adapters", "fusion", "FluidNC.cps");
+export const defaultOriginalPostPath = path.join(os.homedir(), "AppData", "Roaming", "Autodesk", "Fusion 360 CAM", "Posts", "FluidNC.cps");
 
 export const MM = "MM";
 export const IN = "IN";
@@ -238,6 +240,13 @@ function createSection(overrides = {}) {
   };
 }
 
+function normalizeSection(section) {
+  if (section && typeof section.getTool == "function") {
+    return section;
+  }
+  return createSection(section);
+}
+
 function buildToolTable(sections) {
   const seen = {};
   const tools = [];
@@ -265,7 +274,7 @@ export async function loadPost(options = {}) {
   const rawSource = await fs.readFile(cpsPath, "utf8");
   const source = typeof options.sourceTransform == "function" ? options.sourceTransform(rawSource, cpsPath) : rawSource;
   const properties = { ...defaultProperties, ...options.properties };
-  const sections = (options.sections ?? [createSection()]).map((section) => createSection(section));
+  const sections = (options.sections ?? [{}]).map(normalizeSection);
   const outputPath = options.outputPath ?? path.join(repoRoot, "fixtures", "expected", "fusion", `${options.programName ?? "program"}.nc`);
   const state = {
     bufferName: "main",

@@ -3,10 +3,10 @@ import path from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-import { loadPost, PLANE_XY, PLANE_ZX, PLANE_YZ } from "../../tests/support/fusion-host.mjs";
+import { defaultOriginalPostPath, loadPost, PLANE_XY, PLANE_ZX, PLANE_YZ } from "../../tests/support/fusion-host.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const originalPath = process.env.FLUIDNC_ORIGINAL_POST ?? "C:\\Users\\540ly\\AppData\\Roaming\\Autodesk\\Fusion 360 CAM\\Posts\\FluidNC.cps";
+const originalPath = process.env.FLUIDNC_ORIGINAL_POST ?? defaultOriginalPostPath;
 
 function normalizeText(text) {
   return String(text ?? "").replace(/\r\n/g, "\n").trimEnd();
@@ -514,7 +514,7 @@ const fixtureAuditScenarios = [
 ];
 
 if (!fs.existsSync(originalPath)) {
-  console.log(`Skipping original fixture audit because the original post was not found at ${originalPath}.`);
+  console.log(`Skipping original fixture audit because the original post was not found at ${originalPath}. Set FLUIDNC_ORIGINAL_POST to override the default location.`);
   process.exit(0);
 }
 
