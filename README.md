@@ -168,7 +168,6 @@ If you are contributing or modifying the post itself, start here:
 - [Install In Fusion](docs/install-fusion.md)
 - [Testing](docs/testing.md)
 - [Fusion Adapter Notes](adapters/fusion/README.md)
-- [Phase 5 Roadmap](docs/phase-5-roadmap.md)
 
 For provenance and upstream baseline notes without a tracked copy of the imported post source, see:
 

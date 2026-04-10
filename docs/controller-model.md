@@ -7,7 +7,7 @@ FluidNC behavior should be modeled as controller semantics plus machine/profile 
 ## Controller concerns
 
 - supported motion and modal concepts
-- supported drilling cycles and work-offset range
+- supported drilling cycles, tool length compensation semantics, and maximum work-offset range
 - unit handling
 - spindle and coolant command expectations
 - arc handling and tolerance alignment
@@ -30,7 +30,8 @@ FluidNC behavior should be modeled as controller semantics plus machine/profile 
 - spindle warmup delay
 - segment filter threshold defaults
 - manual tool change conventions
-- tool length compensation capability
-- feed caps and warning policy
+- enabled/default work offset subset within the controller-supported range
+- whether controller-allowed tool length compensation is usable on the machine
+- feed caps and warning policy for a specific machine
 - probing macro templates
 - multi-axis kinematics and capability flags

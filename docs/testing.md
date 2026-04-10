@@ -138,17 +138,9 @@ flowchart TD
 
 ## Community fixture contributions
 
-Community fixture submissions should follow the same real-Fusion capture model used by maintainers.
+The canonical checklist for Phase 5 fixture submissions lives in the [Phase 5 Roadmap](phase-5-roadmap.md#community-fixture-contribution-workflow).
 
-Each contributed fixture family should include:
-
-- the source `.f3d` when possible, otherwise an exact reproduction note
-- emitted `*.nc` for every named post run
-- matching `*.properties.txt` and `*.review.md`
-- the selected machine profile id or a clear machine-context note
-- required safety invariants and forbidden output patterns
-
-The mocked-host harness remains mandatory for callback and state coverage, but it is not enough by itself for a new capability slice. New feature families still need real Fusion-posted evidence.
+For testing, the non-negotiable rule is unchanged: mocked-host coverage is required, but it is not enough by itself for a new capability slice. New feature families still need real Fusion-posted evidence.
 
 ## Current validator scope
 

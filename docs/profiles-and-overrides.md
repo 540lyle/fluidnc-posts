@@ -14,14 +14,16 @@ Profiles keep reusable machine defaults out of the adapter core. Local overrides
 
 Committed YAML profiles are source data, not runtime inputs.
 
-The intended Phase 5 model is:
+The canonical Phase 5 embedding plan lives in the [Phase 5 Roadmap](phase-5-roadmap.md) (Slice 0).
 
-1. committed profiles in `profiles/machines/` define reusable machine defaults
-2. a repo-owned build step converts committed profile data into a static embedded catalog
-3. the shipped `FluidNC.cps` exposes a `machineProfile` selector over that embedded catalog
-4. documented runtime post properties can override the selected profile defaults when needed
+In short, committed profiles in `profiles/machines/` are intended to become a static embedded catalog exposed through a `machineProfile` selector in the shipped `FluidNC.cps`, with documented runtime post properties allowed to override selected defaults.
 
 Fusion should not need direct runtime access to `profiles/*.yaml`.
+
+## Capability boundary
+
+- controller specs define controller-supported maxima such as work-offset range and whether tool length compensation exists at all
+- committed profiles may only narrow, disable, or default those controller-supported capabilities for a specific machine
 
 ## Recommended fields
 
@@ -34,9 +36,9 @@ Fusion should not need direct runtime access to `profiles/*.yaml`.
 - minimum segment length
 - safe retract preference
 - program-end park position
-- supported work offset range
-- tool length compensation capability
-- feed limits and warning policy
+- enabled/default work offset subset within the controller-supported range
+- whether controller-allowed tool length compensation is usable on the machine
+- feed limits and warning policy for the machine
 - probing macros or templates
 - multi-axis kinematics and capability flags
 - notes about tested fixtures
@@ -46,4 +48,5 @@ Fusion should not need direct runtime access to `profiles/*.yaml`.
 - promote only reusable patterns into committed profiles
 - keep serial numbers, local paths, and operator-specific settings out of Git
 - document any runtime property that is expected to override profile defaults
+- do not let profiles invent controller support that is absent from `specs/controller/*`
 - do not add profile fields that are not tied to a controller rule, machine behavior, or fixture-backed need
