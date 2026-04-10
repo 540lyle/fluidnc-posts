@@ -153,6 +153,14 @@ These are stored under [fixtures/expected/fusion](fixtures/expected/fusion) and 
 
 - [Test-FixtureCaptures.ps1](tools/validate/Test-FixtureCaptures.ps1)
 
+## Next Steps
+
+The next major expansion is tracked in:
+
+- [Phase 5 Roadmap](docs/phase-5-roadmap.md)
+
+That roadmap keeps the repo on a fixture-first path, starting with 3-axis completion and the embedded profile model, then expanding through indexed 3+2, probing, and simultaneous 5-axis support. See the roadmap for delivery order and slice details.
+
 ## Need The Developer Docs
 
 If you are contributing or modifying the post itself, start here:

@@ -40,6 +40,14 @@ If you change adapter behavior, say whether the change is:
 - extend the rewrite beyond the current 3-axis fixture families only when new fixtures justify it
 - keep new behavior in plain repo-owned helpers that remain mock-testable outside Fusion
 
+## Next phase
+
+The current next-step roadmap is:
+
+- [Phase 5 Roadmap](../../docs/phase-5-roadmap.md)
+
+That roadmap keeps the adapter expansion fixture-led and profile-driven. See the roadmap for delivery order and slice details.
+
 ## Current behavior decisions
 
 - section starts always restate restart-sensitive modal state
