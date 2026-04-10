@@ -6,6 +6,7 @@
 - Exact snapshots are useful, but invariant checks are the long-term goal.
 - Every behavior fix should either add a fixture or tighten an invariant.
 - Current captured baseline covers `inch-job`, `multi-tool`, `tiny-segment-storm`, and `split-file`.
+- The next required fixture families are listed in `docs/phase-5-roadmap.md` (Slice A); do not maintain a separate copy of that list here.
 - Preferred workflow is: run `npm run test:unit`, prepare fixture folder, generate `.f3d` when possible, use Fusion AI for setup/ops, post into the repo, run `tools/validate/Test-FixtureCaptures.ps1`, then review only failed checks or new behavior.
 - In agent-guided manual regression, the user should only do the Fusion UI steps; once the emitted file paths are available locally, the agent should own diffs, invariant checks, validator runs, and sidecar inspection.
 - When guiding manual Fusion testing, include the concrete linked-folder or local-post setup from `docs/install-fusion.md`; do not just say "use a linked folder" without the actual steps.
@@ -14,5 +15,7 @@
 - The shipped repo post no longer preserves the imported helper/property surface. If old-post helper access is needed in tests, add that adaptation in the test harness instead of restoring pass-through wrappers in `FluidNC.cps`.
 - Repo automation entry point is `npm run validate`; `npm run hooks:install` enables matching `pre-commit` and `pre-push` checks locally.
 - Treat CI as a repo-owned blocker only: do not redesign it to depend on a moving Autodesk install or a live Fusion session. Keep exact original-vs-rewrite installed-post comparisons local unless the original artifact is explicitly pinned in-repo or provisioned into CI.
+- Mocked-host coverage is necessary but not sufficient for a new capability slice; real Fusion-posted fixtures remain required for new feature families.
+- Community fixture contributions should include emitted NC, property matrices, review notes, and either the source `.f3d` or an exact reproduction note.
 - Before declaring real-machine readiness, remind the user to verify the FluidNC controller values `junction_deviation_mm = 0.01` and `arc_tolerance_mm = 0.002`, because fixture parity only proves the post echoed them.
 - If a manual regression run ends with an accepted metadata-only diff, record that acceptance in the fixture `*.review.md`.

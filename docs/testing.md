@@ -18,6 +18,9 @@ The primary failure mode for post processors is not syntax. It is behavioral dri
 - split-file jobs
 - restart-mid-job safety cases
 - coolant-disabled machines
+- unmapped coolant warning cases
+- extended work offset cases
+- program-end park position cases
 
 ## Assertion layers
 
@@ -77,6 +80,10 @@ These are stored under [fixtures/expected/fusion](../fixtures/expected/fusion) w
 - per-run `*.properties.txt`
 - per-run `*.review.md`
 
+## Next fixture priority
+
+The next fixture families should close the remaining baseline 3-axis gaps before new multi-axis or probing work. The canonical list and delivery order is in the [Phase 5 Roadmap](phase-5-roadmap.md) (Slice A).
+
 ## Fast regression loop
 
 Use the captured fixtures as the default regression path.
@@ -129,6 +136,20 @@ flowchart TD
   E --> F["Update review notes only if behavior changed"]
 ```
 
+## Community fixture contributions
+
+Community fixture submissions should follow the same real-Fusion capture model used by maintainers.
+
+Each contributed fixture family should include:
+
+- the source `.f3d` when possible, otherwise an exact reproduction note
+- emitted `*.nc` for every named post run
+- matching `*.properties.txt` and `*.review.md`
+- the selected machine profile id or a clear machine-context note
+- required safety invariants and forbidden output patterns
+
+The mocked-host harness remains mandatory for callback and state coverage, but it is not enough by itself for a new capability slice. New feature families still need real Fusion-posted evidence.
+
 ## Current validator scope
 
 The lightweight validator in [Test-FixtureCaptures.ps1](../tools/validate/Test-FixtureCaptures.ps1) checks:
@@ -139,6 +160,8 @@ The lightweight validator in [Test-FixtureCaptures.ps1](../tools/validate/Test-F
 - `split-file`: emitted master/subfile trees and per-file startup safety
 
 It is not a replacement for controller validation. It is the repo's first-pass guardrail against obvious regression in emitted NC.
+
+The next validation additions are the fixture families listed in the [Phase 5 Roadmap](phase-5-roadmap.md) (Slice A).
 
 ## Automation
 
@@ -156,6 +179,7 @@ CI is intentionally narrower than the full local/manual regression envelope:
 - CI should not depend on a moving Autodesk-installed original post or a live Fusion session.
 - Exact original-vs-rewrite differentials against the locally installed Autodesk post remain a local guardrail.
 - Real Fusion posting against the captured fixture families remains the release-grade regression check.
+- A capability slice is not done on mocked-host evidence alone.
 
 ## Mocked adapter coverage
 
